@@ -43,6 +43,13 @@ export default function Home() {
     document.body.classList.add("dark-mode");
     document.body.classList.remove("light-mode");
 
+    // Auto collapse sidebar on small viewports
+    if (typeof window !== "undefined") {
+      if (window.innerWidth <= 1024) {
+        setSidebarCollapsed(true);
+      }
+    }
+
     // Load initial pre-compiled JSON demo data
     fetch("/agent_analysis_data.json")
       .then((res) => {
@@ -834,10 +841,33 @@ export default function Home() {
 
   return (
     <div className="app-layout">
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {!sidebarCollapsed && (
+        <div
+          className="mobile-sidebar-backdrop"
+          onClick={() => setSidebarCollapsed(true)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+            zIndex: 1050
+          }}
+        />
+      )}
+
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab)}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (typeof window !== "undefined" && window.innerWidth <= 1024) {
+            setSidebarCollapsed(true);
+          }
+        }}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
@@ -845,7 +875,27 @@ export default function Home() {
       {/* Main Content Area */}
       <main className="main-content-area">
         <header>
-          <div className="logo-area">
+          <div className="logo-area" style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="mobile-hamburger"
+              style={{
+                display: "none",
+                background: "var(--card-bg)",
+                border: "1px solid var(--card-border)",
+                color: "var(--text-primary)",
+                width: "2.3rem",
+                height: "2.3rem",
+                borderRadius: "8px",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: "1.1rem",
+                boxShadow: "var(--shadow)"
+              }}
+            >
+              <i className="fa-solid fa-bars"></i>
+            </button>
             <h2 style={{ margin: 0, textTransform: "capitalize" }}>
               {activeTab.replace("-", " ")} Workspace
             </h2>

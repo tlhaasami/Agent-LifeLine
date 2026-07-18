@@ -1522,3 +1522,57 @@ body.light-mode select option {
     color: var(--text-primary) !important;
 }
 
+/* Responsive Sidebar Drawer for Mobile & Tablet */
+@media (max-width: 1024px) {
+    .sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        height: 100vh !important;
+        z-index: 1100 !important;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+    }
+    
+    .sidebar.collapsed {
+        transform: translateX(-100%) !important;
+        width: 260px !important; /* Keep width standard for slide-in view */
+    }
+    
+    .sidebar:not(.collapsed) {
+        transform: translateX(0) !important;
+        width: 260px !important;
+    }
+
+    /* Hide the normal inline collapse button on mobile/tablet */
+    .sidebar-toggle-btn {
+        display: none !important;
+    }
+
+    /* Adjust main content layout */
+    .main-content-area {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding: 1rem !important;
+    }
+    
+    /* Show hamburger menu icon on mobile/tablet */
+    .mobile-hamburger {
+        display: flex !important;
+    }
+
+    .mobile-sidebar-backdrop {
+        display: block !important;
+    }
+}
+
+@media (min-width: 1025px) {
+    .mobile-hamburger {
+        display: none !important;
+    }
+    .mobile-sidebar-backdrop {
+        display: none !important;
+    }
+}
+

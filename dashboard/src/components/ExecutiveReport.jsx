@@ -505,73 +505,215 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
         <section className="card">
           <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
             <h2 style={{ margin: 0 }}>
-              <i className="fa-solid fa-timeline"></i> Visual Scatter Workday Timeline (09:00 - 20:00 BST)
+              <i className="fa-solid fa-timeline"></i> Visual Scatter Workday Timeline ({startHour.toString().padStart(2, "0")}:00 - {endHour.toString().padStart(2, "0")}:00 BST)
             </h2>
             
             {/* Filters */}
-            <div className="no-print" style={{ display: "flex", gap: "0.8rem", alignItems: "center", flexWrap: "wrap" }}>
-              {/* Agent Filter */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>Agent:</span>
-                <select
-                  value={selectedAgentFilter}
-                  onChange={(e) => { setSelectedAgentFilter(e.target.value); setSelectedEvent(null); }}
+            <div className="no-print" style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+              {/* Agent Multi-Select Checkbox Dropdown */}
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowAgentDropdown(!showAgentDropdown)}
                   className="custom-select-small"
                   style={{
-                    padding: "0.35rem 0.75rem",
-                    fontSize: "0.8rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    padding: "0.4rem 1.8rem 0.4rem 0.85rem",
+                    fontSize: "0.82rem",
+                    fontWeight: 700,
                     borderRadius: "6px",
                     background: "var(--input-bg)",
                     border: "1px solid var(--input-border)",
                     color: "var(--text-primary)",
-                    fontWeight: 600
+                    cursor: "pointer"
                   }}
                 >
-                  <option value="all">All Agents</option>
-                  {agents.map(a => (
-                    <option key={a.name} value={a.name}>{a.name}</option>
+                  <i className="fa-solid fa-users" style={{ color: "var(--primary)" }}></i>
+                  Agents ({selectedAgents.length === agents.length ? "All" : selectedAgents.length})
+                </button>
+                {showAgentDropdown && (
+                  <>
+                    <div 
+                      onClick={() => setShowAgentDropdown(false)} 
+                      style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }}
+                    />
+                    <div 
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        marginTop: "0.5rem",
+                        background: "var(--card-bg)",
+                        border: "1px solid var(--card-border)",
+                        borderRadius: "8px",
+                        padding: "0.75rem",
+                        width: "220px",
+                        maxHeight: "260px",
+                        overflowY: "auto",
+                        zIndex: 999,
+                        boxShadow: "var(--shadow)"
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.4rem", marginBottom: "0.4rem" }}>
+                        <button 
+                          onClick={() => setSelectedAgents(agents.map(a => a.name))} 
+                          style={{ background: "none", border: "none", color: "var(--primary)", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}
+                        >
+                          Select All
+                        </button>
+                        <button 
+                          onClick={() => setSelectedAgents([])} 
+                          style={{ background: "none", border: "none", color: "var(--text-secondary)", fontSize: "0.72rem", fontWeight: 700, cursor: "pointer" }}
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                        {agents.map((a) => (
+                          <label key={a.name} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8rem", color: "var(--text-primary)", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedAgents.includes(a.name)}
+                              onChange={() => {
+                                if (selectedAgents.includes(a.name)) {
+                                  setSelectedAgents(selectedAgents.filter(x => x !== a.name));
+                                } else {
+                                  setSelectedAgents([...selectedAgents, a.name]);
+                                }
+                              }}
+                              style={{ cursor: "pointer", accentColor: "var(--primary)" }}
+                            />
+                            {a.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Time bounds Start & End Picker */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>Bounds:</span>
+                <select
+                  value={startHour}
+                  onChange={(e) => {
+                    const newStart = parseInt(e.target.value);
+                    setStartHour(newStart);
+                    if (endHour <= newStart) setEndHour(newStart + 1);
+                  }}
+                  style={{ padding: "0.3rem 1.8rem 0.3rem 0.6rem", fontSize: "0.8rem", borderRadius: "6px" }}
+                >
+                  {Array.from({ length: 24 }).map((_, h) => (
+                    <option key={h} value={h}>{h.toString().padStart(2, "0")}:00 BST</option>
+                  ))}
+                </select>
+                <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>to</span>
+                <select
+                  value={endHour}
+                  onChange={(e) => setEndHour(parseInt(e.target.value))}
+                  style={{ padding: "0.3rem 1.8rem 0.3rem 0.6rem", fontSize: "0.8rem", borderRadius: "6px" }}
+                >
+                  {Array.from({ length: 24 }).map((_, h) => (
+                    <option key={h} value={h} disabled={h <= startHour}>{h.toString().padStart(2, "0")}:00 BST</option>
                   ))}
                 </select>
               </div>
+            </div>
+          </div>
 
-              {/* Event Type Filter */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>Filter:</span>
-                <select
-                  value={eventFilter}
-                  onChange={(e) => { setEventFilter(e.target.value); setSelectedEvent(null); }}
-                  className="custom-select-small"
-                  style={{
-                    padding: "0.35rem 0.75rem",
-                    fontSize: "0.8rem",
-                    borderRadius: "6px",
-                    background: "var(--input-bg)",
-                    border: "1px solid var(--input-border)",
-                    color: "var(--text-primary)",
-                    fontWeight: 600
-                  }}
-                >
-                  <option value="all">All Events</option>
-                  <option value="calls">Calls Only</option>
-                  <option value="missed">Missed Calls Only</option>
-                  <option value="notes">Notes Updates Only</option>
-                  <option value="stage">Stage Updates Only</option>
-                  <option value="contact">Contact Updates Only</option>
-                </select>
+          {/* Interactive Checkbox Event Filter Panel */}
+          <div className="no-print" style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center", width: "100%", padding: "0.75rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.03)", background: "rgba(255,255,255,0.01)" }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>Show Timeline Data:</span>
+            
+            {/* GHL Checkbox */}
+            <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-primary)", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={filterGhlUpdates}
+                onChange={() => setFilterGhlUpdates(!filterGhlUpdates)}
+                style={{ accentColor: "#818cf8", cursor: "pointer" }}
+              />
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#818cf8" }} />
+              GHL Updates
+            </label>
+
+            {filterGhlUpdates && (
+              <div style={{ display: "flex", gap: "0.8rem", paddingLeft: "0.5rem", borderLeft: "1px solid rgba(255,255,255,0.1)", flexWrap: "wrap" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={filterNotesOnly}
+                    onChange={() => {
+                      setFilterNotesOnly(!filterNotesOnly);
+                      if (!filterNotesOnly) {
+                        setFilterOppsOnly(false);
+                        setFilterContactsOnly(false);
+                      }
+                    }}
+                    style={{ accentColor: "var(--primary)", cursor: "pointer" }}
+                  />
+                  Notes Only
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={filterOppsOnly}
+                    onChange={() => {
+                      setFilterOppsOnly(!filterOppsOnly);
+                      if (!filterOppsOnly) {
+                        setFilterNotesOnly(false);
+                        setFilterContactsOnly(false);
+                      }
+                    }}
+                    style={{ accentColor: "var(--primary)", cursor: "pointer" }}
+                  />
+                  Opportunities Only
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={filterContactsOnly}
+                    onChange={() => {
+                      setFilterContactsOnly(!filterContactsOnly);
+                      if (!filterContactsOnly) {
+                        setFilterNotesOnly(false);
+                        setFilterOppsOnly(false);
+                      }
+                    }}
+                    style={{ accentColor: "var(--primary)", cursor: "pointer" }}
+                  />
+                  Contacts Only
+                </label>
               </div>
-            </div>
+            )}
 
-            {/* Legend */}
-            <div className="timeline-legend" style={{ display: "flex", gap: "1rem", fontSize: "0.75rem", fontWeight: 700 }}>
-              <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                <span className="legend-color" style={{ backgroundColor: "#818cf8", borderRadius: "50%", width: "10px", height: "10px" }} />
-                GHL Updates
-              </span>
-              <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                <span className="legend-color" style={{ borderBottom: "10px solid #fb923c", borderLeft: "6px solid transparent", borderRight: "6px solid transparent", width: 0, height: 0 }} />
-                Calls Events
-              </span>
-            </div>
+            {/* Calls Checkbox */}
+            <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-primary)", cursor: "pointer", marginLeft: "0.5rem" }}>
+              <input
+                type="checkbox"
+                checked={filterCalls}
+                onChange={() => setFilterCalls(!filterCalls)}
+                style={{ accentColor: "#fb923c", cursor: "pointer" }}
+              />
+              <span style={{ display: "inline-block", width: 0, height: 0, borderBottom: "8px solid #fb923c", borderLeft: "5px solid transparent", borderRight: "5px solid transparent" }} />
+              Call Events
+            </label>
+
+            {filterCalls && (
+              <div style={{ display: "flex", gap: "0.8rem", paddingLeft: "0.5rem", borderLeft: "1px solid rgba(255,255,255,0.1)" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={filterMissedOnly}
+                    onChange={() => setFilterMissedOnly(!filterMissedOnly)}
+                    style={{ accentColor: "var(--primary)", cursor: "pointer" }}
+                  />
+                  Missed Calls Only
+                </label>
+              </div>
+            )}
           </div>
 
           <div className="no-print text-secondary" style={{ padding: "0.5rem 1.5rem", fontSize: "0.78rem", borderBottom: "1px solid rgba(255,255,255,0.03)", fontStyle: "italic" }}>
@@ -657,10 +799,8 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
 
               {selectedEvent.data.details && (
                 <div style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "0.75rem", fontWeight: 700, marginBottom: "0.3rem" }}>ACTION DESCRIPTION DETAILS</span>
-                  <code style={{ display: "block", background: "rgba(0,0,0,0.2)", padding: "0.6rem 0.8rem", borderRadius: "6px", fontSize: "0.8rem", border: "1px solid rgba(255,255,255,0.03)", wordBreak: "break-all", whiteSpace: "pre-wrap", color: "#e2e8f0" }}>
-                    {selectedEvent.data.details}
-                  </code>
+                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "0.75rem", fontWeight: 700, marginBottom: "0.5rem" }}>ACTION DESCRIPTION DETAILS (FORMATTED)</span>
+                  {renderFormattedDetails(selectedEvent.data.details)}
                 </div>
               )}
             </div>
