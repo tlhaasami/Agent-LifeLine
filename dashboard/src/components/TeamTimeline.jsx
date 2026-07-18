@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
+
+// Fixed canvas width — the scroll container will handle overflow
+const CANVAS_MIN_WIDTH = 1200;
 
 export default function TeamTimeline({ agents, selectedAgent, onSelectAgent }) {
   const canvasRef = useRef(null);
+  const namesCanvasRef = useRef(null);
+  const scrollContainerRef = useRef(null);
   const containerRef = useRef(null);
   const [startHour, setStartHour] = useState(9);
   const [endHour, setEndHour] = useState(20);
   const [hoveredItem, setHoveredItem] = useState(null); // { agent, type, data, x, y }
+  const [canvasWidth, setCanvasWidth] = useState(CANVAS_MIN_WIDTH);
 
   // Constant metrics for timeline layout
   const timelineLeftMargin = 160;
@@ -53,14 +59,68 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent }) {
     );
   };
 
-  // Re-draw canvas when agents, hours, hover or selection changes
+  // Keep canvas width at least CANVAS_MIN_WIDTH, but allow it to be wider than container
+  useEffect(() => {
+    const updateWidth = () => {
+      if (!scrollContainerRef.current) return;
+      const containerW = scrollContainerRef.current.clientWidth;
+      setCanvasWidth(Math.max(CANVAS_MIN_WIDTH, containerW));
+    };
+    updateWidth();
+    const ro = new ResizeObserver(updateWidth);
+    if (scrollContainerRef.current) ro.observe(scrollContainerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // Draw the sticky names column on a separate overlay canvas
+  useEffect(() => {
+    const namesCanvas = namesCanvasRef.current;
+    if (!namesCanvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const displayHeight = timelineTopMargin + timelineBottomMargin + Math.max(1, agents.length) * timelineRowHeight;
+    namesCanvas.width = timelineLeftMargin * dpr;
+    namesCanvas.height = displayHeight * dpr;
+    namesCanvas.style.width = `${timelineLeftMargin}px`;
+    namesCanvas.style.height = `${displayHeight}px`;
+
+    const ctx = namesCanvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, timelineLeftMargin, displayHeight);
+
+    const isDark = document.body.classList.contains("dark-mode") || !document.body.classList.contains("light-mode");
+
+    // Draw background for name column to match card background
+    ctx.fillStyle = isDark ? "#0a0a0a" : "#ffffff";
+    ctx.fillRect(0, 0, timelineLeftMargin, displayHeight);
+
+    // Thin right border separator
+    ctx.strokeStyle = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(timelineLeftMargin - 0.5, 0);
+    ctx.lineTo(timelineLeftMargin - 0.5, displayHeight);
+    ctx.stroke();
+
+    agents.forEach((agent, idx) => {
+      const yCenter = timelineTopMargin + idx * timelineRowHeight + timelineRowHeight / 2;
+      const isSelectedRow = selectedAgent && selectedAgent.name === agent.name;
+
+      ctx.fillStyle = isSelectedRow ? (isDark ? "#8b5cf6" : "#4338ca") : isDark ? "#f8fafc" : "#0f172a";
+      ctx.font = isSelectedRow ? "700 12px Outfit" : "600 12px Outfit";
+      ctx.textAlign = "left";
+      ctx.fillText(agent.name, 15, yCenter + 4);
+    });
+  }, [agents, selectedAgent, hoveredItem]);
+
+  // Re-draw main canvas when agents, hours, hover or selection changes
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
-    const displayWidth = containerRef.current.clientWidth;
+    const displayWidth = canvasWidth;
     const displayHeight = timelineTopMargin + timelineBottomMargin + Math.max(1, agents.length) * timelineRowHeight;
 
     canvas.width = displayWidth * dpr;
@@ -79,6 +139,10 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent }) {
       ctx.fillText("No agents match the search criteria", displayWidth / 2, displayHeight / 2);
       return;
     }
+
+    // Draw a background so row highlights look consistent
+    ctx.fillStyle = isDark ? "#0a0a0a" : "#ffffff";
+    ctx.fillRect(0, 0, displayWidth, displayHeight);
 
     // 1. Draw X Axis hour grids
     ctx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)";
@@ -144,10 +208,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent }) {
       ctx.lineTo(displayWidth, rowTop + timelineRowHeight);
       ctx.stroke();
 
-      ctx.fillStyle = isSelectedRow ? (isDark ? "#8b5cf6" : "#4338ca") : isDark ? "#f8fafc" : "#0f172a";
-      ctx.font = isSelectedRow ? "700 12px Outfit" : "600 12px Outfit";
-      ctx.textAlign = "left";
-      ctx.fillText(agent.name, 15, yCenter + 4);
+      // Names are drawn on the sticky overlay canvas — skip here
 
       const details = agent.details;
 
@@ -212,7 +273,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent }) {
         }
       });
     });
-  }, [agents, startHour, endHour, hoveredItem, selectedAgent]);
+  }, [agents, startHour, endHour, hoveredItem, selectedAgent, canvasWidth]);
 
   // Handle interaction
   const handleMouseMove = (e) => {
@@ -235,7 +296,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent }) {
       return;
     }
 
-    const displayWidth = rect.width;
+    const displayWidth = canvasWidth;
     const yCenter = timelineTopMargin + idx * timelineRowHeight + timelineRowHeight / 2;
     const details = agent.details;
 
@@ -282,7 +343,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent }) {
       for (const c of calls) {
         const callTime = new Date(c.timestamp);
         if (callTime >= getMinTime() && callTime <= getMaxTime()) {
-          const xVal = getX(callTime, displayWidth);
+          const xVal = getX(callTime, canvasWidth);
           if (Math.abs(x - xVal) <= 6 && Math.abs(y - yCenter) <= 10) {
             hovered = {
               agent,
@@ -490,15 +551,27 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent }) {
           </div>
         </div>
       </div>
-      <div 
-        className="timeline-container-outer" 
-        ref={containerRef}
-        style={{ overflowX: "auto", overflowY: "hidden", width: "100%", WebkitOverflowScrolling: "touch" }}
-      >
-        <div 
-          className="timeline-container" 
+
+      {/* Wrapper: sticky name column + scrollable chart area */}
+      <div ref={containerRef} style={{ display: "flex", width: "100%", overflow: "hidden" }}>
+        {/* Sticky name labels canvas */}
+        <div style={{ flexShrink: 0, zIndex: 2, position: "relative" }}>
+          <canvas ref={namesCanvasRef} style={{ display: "block" }} />
+        </div>
+
+        {/* Horizontally scrollable chart */}
+        <div
+          ref={scrollContainerRef}
           id="timeline-canvas-container"
-          style={{ minWidth: "900px" }}
+          style={{
+            flex: 1,
+            overflowX: "auto",
+            overflowY: "hidden",
+            WebkitOverflowScrolling: "touch",
+            /* Custom scrollbar styling */
+            scrollbarWidth: "thin",
+            scrollbarColor: "rgba(100,116,139,0.4) transparent",
+          }}
         >
           <canvas
             ref={canvasRef}
@@ -509,6 +582,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent }) {
           />
         </div>
       </div>
+
       <div className="timeline-tip">
         <i className="fa-solid fa-info-circle"></i> Hover over work blocks or breaks to view details. Click on an
         agent name or block to inspect.
