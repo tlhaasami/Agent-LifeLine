@@ -22,7 +22,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("upload-data");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAgent, setSelectedAgent] = useState(null);
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState("light");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showHero, setShowHero] = useState(true);
 
@@ -41,8 +41,8 @@ export default function Home() {
 
   useEffect(() => {
     // Set default body class
-    document.body.classList.add("dark-mode");
-    document.body.classList.remove("light-mode");
+    document.body.classList.add("light-mode");
+    document.body.classList.remove("dark-mode");
 
     // Auto collapse sidebar on small viewports
     if (typeof window !== "undefined") {
@@ -822,109 +822,57 @@ export default function Home() {
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ padding: "3rem", textAlign: "center", fontFamily: "Outfit, sans-serif" }}>
-        <h2>Loading Agent Performance Data...</h2>
-        <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>Fetching data feed</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: "3rem", textAlign: "center", fontFamily: "Outfit, sans-serif" }}>
-        <h2 style={{ color: "var(--danger)" }}>Error Loading Dashboard Data</h2>
-        <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>{error}</p>
-      </div>
-    );
-  }
-
-  // ── Hero Landing Page ────────────────────────────────────────────────────
+  // ── Hero Landing Page ─────────────────────────────────────────────────────
+  // Loading runs in background while hero shows — no blocking loading screen
   if (showHero) {
     return (
       <div className="hero-root">
-        {/* Ambient background orbs */}
-        <div className="hero-orb hero-orb-1" />
-        <div className="hero-orb hero-orb-2" />
-        <div className="hero-orb hero-orb-3" />
 
-        {/* Grid overlay */}
+        {/* Video background — poster is actual first frame of the video */}
+        <div className="hero-video-wrap">
+          <img src="/hero-poster-dark.jpg" alt="" className="hero-poster" aria-hidden="true" />
+          <video
+            className="hero-video"
+            src="/bg-video.mp4"
+            poster="/hero-poster-dark.jpg"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="none"
+          />
+          <div className="hero-video-overlay" />
+        </div>
+
+        {/* Subtle dot-grid texture */}
         <div className="hero-grid" />
 
+        {/* Centred content */}
         <div className="hero-content">
-          {/* Badge */}
-          <div className="hero-badge">
-            <span className="hero-badge-dot" />
-            <span>LifeLine Intelligence Platform</span>
-          </div>
-
-          {/* Headline */}
           <h1 className="hero-headline">
             Agent Tracking
             <span className="hero-headline-accent"> Workspace</span>
           </h1>
 
-          {/* Sub-headlines */}
           <p className="hero-subheadline">
             Know exactly what your agents are doing — every action, every call,
             every moment of the working day.
           </p>
 
-          {/* Stat pills */}
-          <div className="hero-stats">
-            <div className="hero-stat">
-              <i className="fa-solid fa-chart-line" />
-              <span>Real-Time Activity</span>
-            </div>
-            <div className="hero-stat-divider" />
-            <div className="hero-stat">
-              <i className="fa-solid fa-phone-volume" />
-              <span>Call Intelligence</span>
-            </div>
-            <div className="hero-stat-divider" />
-            <div className="hero-stat">
-              <i className="fa-solid fa-users" />
-              <span>Full Team Visibility</span>
-            </div>
-          </div>
-
-          {/* Feature cards row */}
-          <div className="hero-features">
-            <div className="hero-feature-card">
-              <i className="fa-solid fa-timeline" />
-              <h3>Live Timeline</h3>
-              <p>See session-by-session activity across your entire team on one unified canvas.</p>
-            </div>
-            <div className="hero-feature-card hero-feature-card--accent">
-              <i className="fa-solid fa-bullseye" />
-              <h3>Conversion Metrics</h3>
-              <p>Track leads from new to closed — with per-agent conversion rates calculated live.</p>
-            </div>
-            <div className="hero-feature-card">
-              <i className="fa-solid fa-file-waveform" />
-              <h3>Executive Reports</h3>
-              <p>Automated performance summaries ready for leadership review at any time.</p>
-            </div>
-          </div>
-
-          {/* CTA Button */}
           <button
             id="hero-enter-btn"
             className="hero-cta-btn"
             onClick={() => setShowHero(false)}
           >
-            <span>Enter Workspace</span>
-            <i className="fa-solid fa-arrow-right hero-cta-icon" />
+            <span>{loading ? "Preparing Workspace…" : "Enter Workspace"}</span>
+            <i className={`fa-solid ${loading ? "fa-spinner fa-spin" : "fa-arrow-right hero-cta-icon"}`} />
           </button>
-
-          <p className="hero-footnote">
-            <i className="fa-solid fa-lock" /> Secure &amp; Private — all data processed locally in your browser
-          </p>
         </div>
       </div>
     );
   }
+
+
 
   return (
     <div className="app-layout">
