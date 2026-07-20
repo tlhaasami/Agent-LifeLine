@@ -518,7 +518,227 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
   };
 
   const handlePrint = () => {
-    window.print();
+    const reportDateFormatted = new Date(reportDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+
+    let pdfTitle = "Executive Operations Report";
+    let pdfFilename = `Executive_Report_${reportDate}.pdf`;
+
+    if (activeSection === "exec-conversion") {
+      pdfTitle = "Agent Conversion Metrics Report";
+      pdfFilename = `Agent_Conversion_Report_${reportDate}.pdf`;
+    } else if (activeSection === "exec-sprints") {
+      pdfTitle = "Lead Sprints Analysis Report";
+      pdfFilename = `Lead_Sprints_Report_${reportDate}.pdf`;
+    } else if (activeSection === "exec-calls") {
+      pdfTitle = "Call Analytics Metrics Report";
+      pdfFilename = `Call_Analytics_Report_${reportDate}.pdf`;
+    }
+
+    let reportBodyHTML = "";
+
+    if (!activeSection || activeSection === "exec-conversion" || activeSection === "executive-report") {
+      // Sort agents by margin_added_today descending
+      const sortedAgents = [...agents].sort((a, b) => (b.margin_added_today || 0) - (a.margin_added_today || 0));
+
+      const table1RowsHTML = sortedAgents.map(a => {
+        const seg = a.segmentations || {};
+        const marginVal = typeof a.margin_added_today === "number" ? `$${a.margin_added_today.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "$0.00";
+        return `
+          <tr>
+            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.name}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${seg.newLeads || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${seg.apptBookedLeads || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${seg.closedLeads || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${seg.bookedLeads || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center; color: #111;">${marginVal}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.stage_interested_today || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.stage_contacted_today || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.notes_updated_today || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.general_conv_rate?.toFixed(1) || "0.0"}%</td>
+          </tr>
+        `;
+      }).join("");
+
+      reportBodyHTML += `
+        <!-- Section 1: Table 1 -->
+        <div style="margin-bottom: 1.5rem; page-break-inside: avoid;">
+          <div style="text-align: center; font-size: 8.5pt; font-style: italic; margin-bottom: 0.4rem; font-weight: bold;">
+            Table I: Agent Conversion, Margin (Sorted Descending), and Stage Segmentations
+          </div>
+          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000; font-size: 7.5pt; text-align: center; margin: 0 auto; table-layout: auto;">
+            <thead>
+              <tr style="background: #f2f2f2; font-weight: bold;">
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">AGENT</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">NEW LEADS</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">APPT BOOKED</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">CLOSED</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">BOOKED</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">MARGIN ($)</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">INTERESTED</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">CONTACTED</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">NOTES</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">CONV. %</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${table1RowsHTML}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    if (!activeSection || activeSection === "exec-sprints" || activeSection === "executive-report") {
+      const sortedAgents = [...agents].sort((a, b) => (b.converted_today || 0) - (a.converted_today || 0));
+
+      const table2RowsHTML = sortedAgents.map(a => {
+        return `
+          <tr>
+            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.name}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.new_leads_today || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.converted_today || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.today_conv_rate?.toFixed(1) || "0.0"}%</td>
+          </tr>
+        `;
+      }).join("");
+
+      reportBodyHTML += `
+        <!-- Section 2: Table 2 -->
+        <div style="margin-bottom: 1.5rem; page-break-inside: avoid;">
+          <div style="text-align: center; font-size: 8.5pt; font-style: italic; margin-bottom: 0.4rem; font-weight: bold;">
+            Table II: Real-Time Lead Speed & Converted Ratios (Sorted Descending)
+          </div>
+          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000; font-size: 8pt; text-align: center; margin: 0 auto; table-layout: auto;">
+            <thead>
+              <tr style="background: #f2f2f2; font-weight: bold;">
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 7.2pt; text-align: center; white-space: nowrap;">AGENT</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 7.2pt; text-align: center; white-space: nowrap;">NEW LEADS TODAY</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 7.2pt; text-align: center; white-space: nowrap;">CONVERTED TODAY</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 7.2pt; text-align: center; white-space: nowrap;">CONVERSION RATE (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${table2RowsHTML}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    if (!activeSection || activeSection === "exec-calls" || activeSection === "executive-report") {
+      const sortedAgents = [...agents].sort((a, b) => {
+        const totalA = (a.call_metrics?.outboundCount || 0) + (a.call_metrics?.inboundCount || 0);
+        const totalB = (b.call_metrics?.outboundCount || 0) + (b.call_metrics?.inboundCount || 0);
+        return totalB - totalA;
+      });
+
+      const table3RowsHTML = sortedAgents.map(a => {
+        const call = a.call_metrics || {};
+        return `
+          <tr>
+            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.name}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundCount || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundAttended || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundMissed || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundMinutes?.toFixed(1) || "0.0"}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundAvgDuration?.toFixed(1) || "0.0"}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundCount || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundAttended || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundMissed || 0}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundMinutes?.toFixed(1) || "0.0"}</td>
+            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundAvgDuration?.toFixed(1) || "0.0"}</td>
+          </tr>
+        `;
+      }).join("");
+
+      reportBodyHTML += `
+        <!-- Section 3: Table 3 -->
+        <div style="margin-bottom: 1.5rem; page-break-inside: avoid;">
+          <div style="text-align: center; font-size: 8.5pt; font-style: italic; margin-bottom: 0.4rem; font-weight: bold;">
+            Table III: Mapped Inbound & Outbound Communication Audits (Sorted Descending)
+          </div>
+          <div style="text-align: center; font-size: 7.2pt; color: #555; margin-bottom: 0.5rem; font-style: italic;">
+            Glossary: OUT = Outbound | IN = Inbound | MINS = Total Call Minutes | AVG = Avg Duration | ANS = Answered | MISS = Missed
+          </div>
+          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000; font-size: 7.2pt; text-align: center; margin: 0 auto; table-layout: auto;">
+            <thead>
+              <tr style="background: #f2f2f2; font-weight: bold;">
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">AGENT</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. COUNT</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. ANS</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. MISS</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. MINS</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. AVG</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. COUNT</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. ANS</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. MISS</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. MINS</th>
+                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. AVG</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${table3RowsHTML}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    // LaTeX styled HTML template string without glossary
+    const latexTemplate = `
+      <div style="font-family: 'Times New Roman', Times, Georgia, serif; color: #000; padding: 0.3in; background: #fff; line-height: 1.3; font-size: 10pt; width: 100%; box-sizing: border-box;">
+        <!-- Title Block -->
+        <div style="text-align: center; margin-bottom: 1rem;">
+          <h1 style="font-size: 15pt; font-weight: normal; margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 1px;">
+            ${pdfTitle}
+          </h1>
+          <div style="font-size: 9.5pt; font-style: italic; margin-bottom: 0.1rem;">
+            LifeLine Agent Performance & Conversion Hub
+          </div>
+          <div style="font-size: 9.5pt; margin-bottom: 0.8rem;">
+            Date: ${reportDateFormatted}
+          </div>
+          <hr style="border: 0; border-top: 1.5px solid #000; margin: 0 auto; width: 25%;" />
+        </div>
+
+        ${reportBodyHTML}
+      </div>
+    `;
+
+    const container = document.createElement("div");
+    container.style.width = "750px"; // standard letter size print width
+    container.innerHTML = latexTemplate;
+
+    const opt = {
+      margin:       [0.4, 0.4, 0.4, 0.4],
+      filename:     pdfFilename,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { 
+        scale: 2.5, 
+        useCORS: true, 
+        backgroundColor: "#ffffff"
+      },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    const runHtml2Pdf = () => {
+      window.html2pdf().from(container).set(opt).save().catch(err => {
+        console.error("PDF generation error:", err);
+      });
+    };
+
+    if (window.html2pdf) {
+      runHtml2Pdf();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      script.onload = () => {
+        if (window.html2pdf) {
+          runHtml2Pdf();
+        }
+      };
+      document.body.appendChild(script);
+    }
   };
 
   const downloadCSV = (headers, rows, filename) => {
@@ -604,7 +824,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
   const formattedGlossaryDate = new Date(reportDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+    <div id="executive-report-content" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       {/* 1. Header (hidden during printing if we are printing specific tables) */}
       <div className="card no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.5rem" }}>
         <div>
@@ -1258,7 +1478,17 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
       {(showAll || activeSection === "exec-calls") && (
         <section className="card">
           <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-            <h2 style={{ margin: 0 }}>Table 3: Granular Inbound vs. Outbound Call Metrics</h2>
+            <div>
+              <h2 style={{ margin: 0 }}>Table 3: Granular Inbound vs. Outbound Call Metrics</h2>
+              <div style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginTop: "0.3rem", display: "flex", gap: "0.8rem", flexWrap: "wrap", fontWeight: 550 }}>
+                <span><strong>OUT:</strong> Outbound</span>
+                <span><strong>IN:</strong> Inbound</span>
+                <span><strong>MINS:</strong> Minutes</span>
+                <span><strong>AVG DUR:</strong> Avg Duration</span>
+                <span><strong>ANS:</strong> Answered</span>
+                <span><strong>MISS:</strong> Missed</span>
+              </div>
+            </div>
             
             {/* Table 3 controls */}
             <div className="no-print" style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>

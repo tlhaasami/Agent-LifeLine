@@ -46,6 +46,7 @@ export default function Home() {
   const [reportDate, setReportDate] = useState("2026-07-17");
   const [showGhlMessages, setShowGhlMessages] = useState(true);
   const [ghlOutboundMessages, setGhlOutboundMessages] = useState([]);
+  const [breakThresholdMinutes, setBreakThresholdMinutes] = useState(30);
 
   // Mock outbound messages helper
   const getMockOutboundMessages = (dateStr) => {
@@ -1193,11 +1194,22 @@ export default function Home() {
                   agents={filteredAgents}
                   selectedAgent={selectedAgent}
                   onSelectAgent={(agent) => setSelectedAgent(agent)}
+                  ghlMessages={ghlOutboundMessages}
+                  reportDate={reportDate}
+                  breakThresholdMinutes={breakThresholdMinutes}
+                  setBreakThresholdMinutes={setBreakThresholdMinutes}
                 />
               </div>
 
               <div style={{ flex: 1, minWidth: "300px", display: "flex", flexDirection: "column" }}>
-                <AgentDetails agent={selectedAgent} ghlMessages={ghlOutboundMessages} reportDate={reportDate} onClose={() => setSelectedAgent(null)} />
+                <AgentDetails 
+                  agent={selectedAgent} 
+                  ghlMessages={ghlOutboundMessages} 
+                  reportDate={reportDate} 
+                  breakThresholdMinutes={breakThresholdMinutes}
+                  setBreakThresholdMinutes={setBreakThresholdMinutes}
+                  onClose={() => setSelectedAgent(null)} 
+                />
               </div>
             </div>
           </div>

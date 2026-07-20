@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import PieChart from "./PieChart";
 
-export default function AgentDetails({ agent, ghlMessages = [], reportDate, onClose }) {
+export default function AgentDetails({ agent, ghlMessages = [], reportDate, breakThresholdMinutes, setBreakThresholdMinutes, onClose }) {
   const chartColors = ["#4f46e5", "#8b5cf6", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899"];
   
   // Interactive filters
@@ -17,6 +17,139 @@ export default function AgentDetails({ agent, ghlMessages = [], reportDate, onCl
     setGhlModuleFilter("all");
     setCallDirectionFilter("all");
   }, [agent]);
+
+  const details = agent?.details || {};
+  const actionsList = details?.actions_list || [];
+  const callsList = agent?.calls || [];
+
+  const workdayStartHour = 9;
+  const workdayEndHour = 20;
+
+  const workdayStart = React.useMemo(() => {
+    if (!reportDate) return null;
+    const parts = reportDate.split("-");
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    return new Date(Date.UTC(year, month, day, workdayStartHour, 0, 0));
+  }, [reportDate]);
+
+  const workdayEnd = React.useMemo(() => {
+    if (!reportDate) return null;
+    const parts = reportDate.split("-");
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    return new Date(Date.UTC(year, month, day, workdayEndHour, 0, 0));
+  }, [reportDate]);
+
+  // Combine and label all events (GHL updates, Calls, and GHL outbound messages)
+  const allEvents = React.useMemo(() => {
+    if (!agent) return [];
+    const list = [
+      ...actionsList.map(a => ({
+        ...a,
+        type: "ghl",
+        timeObj: new Date(a.timestamp),
+      })),
+      ...callsList.map(c => ({
+        ...c,
+        type: "calls",
+        timeObj: new Date(c.timestamp),
+        module: "CALL",
+        action: c.direction.toUpperCase()
+      }))
+    ];
+
+    if (ghlMessages) {
+      const agentMsgs = ghlMessages.filter(m => m.agent === agent.name);
+      agentMsgs.forEach(m => {
+        list.push({
+          id: m.id,
+          type: "message",
+          timestamp: m.time instanceof Date ? m.time.toISOString() : new Date(m.time).toISOString(),
+          timeObj: new Date(m.time),
+          module: "MESSAGE",
+          action: "OUTBOUND",
+          body: m.body,
+          contact_name: m.contactName
+        });
+      });
+    }
+
+    // Sort events chronologically
+    return list.sort((a, b) => a.timeObj.getTime() - b.timeObj.getTime());
+  }, [actionsList, callsList, ghlMessages, agent]);
+
+  const masterActivityTimes = React.useMemo(() => {
+    return allEvents.map(ev => ev.timeObj);
+  }, [allEvents]);
+
+  const calculatedBreaks = React.useMemo(() => {
+    if (!workdayStart || !workdayEnd) return [];
+    
+    const breaks = [];
+    
+    const getWorkdayClampedGap = (rawStart, rawEnd) => {
+      const startMs = Math.max(rawStart.getTime(), workdayStart.getTime());
+      const endMs = Math.min(rawEnd.getTime(), workdayEnd.getTime());
+      if (endMs > startMs) {
+        return {
+          start: new Date(startMs),
+          end: new Date(endMs),
+          durationMs: endMs - startMs
+        };
+      }
+      return null;
+    };
+
+    // If there are no activities at all, the agent is on break for the entire workday
+    if (masterActivityTimes.length === 0) {
+      const fullDayGap = getWorkdayClampedGap(workdayStart, workdayEnd);
+      if (fullDayGap && (fullDayGap.durationMs / (60 * 1000)) >= breakThresholdMinutes) {
+        breaks.push({
+          start: fullDayGap.start.toISOString(),
+          end: fullDayGap.end.toISOString(),
+          duration: fullDayGap.durationMs / 1000
+        });
+      }
+      return breaks;
+    }
+
+    // 1. Initial Gap (workdayStart to first action)
+    const initialGap = getWorkdayClampedGap(workdayStart, masterActivityTimes[0]);
+    if (initialGap && (initialGap.durationMs / (60 * 1000)) >= breakThresholdMinutes) {
+      breaks.push({
+        start: initialGap.start.toISOString(),
+        end: initialGap.end.toISOString(),
+        duration: initialGap.durationMs / 1000
+      });
+    }
+
+    // 2. Intermediate Gaps (between consecutive actions)
+    for (let i = 1; i < masterActivityTimes.length; i++) {
+      const intermediateGap = getWorkdayClampedGap(masterActivityTimes[i - 1], masterActivityTimes[i]);
+      if (intermediateGap && (intermediateGap.durationMs / (60 * 1000)) >= breakThresholdMinutes) {
+        breaks.push({
+          start: intermediateGap.start.toISOString(),
+          end: intermediateGap.end.toISOString(),
+          duration: intermediateGap.durationMs / 1000
+        });
+      }
+    }
+
+    // 3. Final Gap (last action to workdayEnd)
+    const finalGap = getWorkdayClampedGap(masterActivityTimes[masterActivityTimes.length - 1], workdayEnd);
+    if (finalGap && (finalGap.durationMs / (60 * 1000)) >= breakThresholdMinutes) {
+      breaks.push({
+        start: finalGap.start.toISOString(),
+        end: finalGap.end.toISOString(),
+        duration: finalGap.durationMs / 1000
+      });
+    }
+
+    return breaks;
+  }, [masterActivityTimes, workdayStart, workdayEnd, breakThresholdMinutes]);
 
   const formatSecondsToTime = (seconds) => {
     const sec = Math.round(seconds);
@@ -96,140 +229,6 @@ export default function AgentDetails({ agent, ghlMessages = [], reportDate, onCl
     );
   }
 
-  const details = agent.details;
-  const actionsList = details.actions_list || [];
-  const callsList = agent.calls || [];
-
-  const [breakThresholdMinutes, setBreakThresholdMinutes] = useState(30);
-
-  const workdayStartHour = 9;
-  const workdayEndHour = 20;
-
-  const workdayStart = React.useMemo(() => {
-    if (!reportDate) return null;
-    const parts = reportDate.split("-");
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    return new Date(Date.UTC(year, month, day, workdayStartHour, 0, 0));
-  }, [reportDate]);
-
-  const workdayEnd = React.useMemo(() => {
-    if (!reportDate) return null;
-    const parts = reportDate.split("-");
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    return new Date(Date.UTC(year, month, day, workdayEndHour, 0, 0));
-  }, [reportDate]);
-
-  // Combine and label all events (GHL updates, Calls, and GHL outbound messages)
-  const allEvents = React.useMemo(() => {
-    const list = [
-      ...actionsList.map(a => ({
-        ...a,
-        type: "ghl",
-        timeObj: new Date(a.timestamp),
-      })),
-      ...callsList.map(c => ({
-        ...c,
-        type: "calls",
-        timeObj: new Date(c.timestamp),
-        module: "CALL",
-        action: c.direction.toUpperCase()
-      }))
-    ];
-
-    if (ghlMessages) {
-      const agentMsgs = ghlMessages.filter(m => m.agent === agent.name);
-      agentMsgs.forEach(m => {
-        list.push({
-          id: m.id,
-          type: "message",
-          timestamp: m.time instanceof Date ? m.time.toISOString() : new Date(m.time).toISOString(),
-          timeObj: new Date(m.time),
-          module: "MESSAGE",
-          action: "OUTBOUND",
-          body: m.body,
-          contact_name: m.contactName
-        });
-      });
-    }
-
-    // Sort events chronologically
-    return list.sort((a, b) => a.timeObj.getTime() - b.timeObj.getTime());
-  }, [actionsList, callsList, ghlMessages, agent.name]);
-
-  const masterActivityTimes = React.useMemo(() => {
-    return allEvents.map(ev => ev.timeObj);
-  }, [allEvents]);
-
-  const calculatedBreaks = React.useMemo(() => {
-    if (!workdayStart || !workdayEnd) return [];
-    
-    const breaks = [];
-    
-    const getWorkdayClampedGap = (rawStart, rawEnd) => {
-      const startMs = Math.max(rawStart.getTime(), workdayStart.getTime());
-      const endMs = Math.min(rawEnd.getTime(), workdayEnd.getTime());
-      if (endMs > startMs) {
-        return {
-          start: new Date(startMs),
-          end: new Date(endMs),
-          durationMs: endMs - startMs
-        };
-      }
-      return null;
-    };
-
-    // If there are no activities at all, the agent is on break for the entire workday
-    if (masterActivityTimes.length === 0) {
-      const fullDayGap = getWorkdayClampedGap(workdayStart, workdayEnd);
-      if (fullDayGap && (fullDayGap.durationMs / (60 * 1000)) >= breakThresholdMinutes) {
-        breaks.push({
-          start: fullDayGap.start.toISOString(),
-          end: fullDayGap.end.toISOString(),
-          duration: fullDayGap.durationMs / 1000
-        });
-      }
-      return breaks;
-    }
-
-    // 1. Initial Gap (workdayStart to first action)
-    const initialGap = getWorkdayClampedGap(workdayStart, masterActivityTimes[0]);
-    if (initialGap && (initialGap.durationMs / (60 * 1000)) >= breakThresholdMinutes) {
-      breaks.push({
-        start: initialGap.start.toISOString(),
-        end: initialGap.end.toISOString(),
-        duration: initialGap.durationMs / 1000
-      });
-    }
-
-    // 2. Intermediate Gaps (between consecutive actions)
-    for (let i = 1; i < masterActivityTimes.length; i++) {
-      const intermediateGap = getWorkdayClampedGap(masterActivityTimes[i - 1], masterActivityTimes[i]);
-      if (intermediateGap && (intermediateGap.durationMs / (60 * 1000)) >= breakThresholdMinutes) {
-        breaks.push({
-          start: intermediateGap.start.toISOString(),
-          end: intermediateGap.end.toISOString(),
-          duration: intermediateGap.durationMs / 1000
-        });
-      }
-    }
-
-    // 3. Final Gap (last action to workdayEnd)
-    const finalGap = getWorkdayClampedGap(masterActivityTimes[masterActivityTimes.length - 1], workdayEnd);
-    if (finalGap && (finalGap.durationMs / (60 * 1000)) >= breakThresholdMinutes) {
-      breaks.push({
-        start: finalGap.start.toISOString(),
-        end: finalGap.end.toISOString(),
-        duration: finalGap.durationMs / 1000
-      });
-    }
-
-    return breaks;
-  }, [masterActivityTimes, workdayStart, workdayEnd, breakThresholdMinutes]);
-
   // Filter GHL modules list dynamically
   const uniqueGhlModules = Array.from(new Set(actionsList.map(a => a.module).filter(Boolean)));
 
@@ -267,8 +266,8 @@ export default function AgentDetails({ agent, ghlMessages = [], reportDate, onCl
   const maxHourlyCount = Math.max(...hourlyCounts, 1);
 
   return (
-    <section className="card details-card" id="details-panel" style={{ flex: 1, overflowY: "auto" }}>
-      <div id="details-active-state" className="details-content">
+    <section className="card details-card" id="details-panel" style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+      <div id="details-active-state" className="details-content" style={{ display: "flex", flexDirection: "column", flex: 1 }}>
         <div className="details-header">
           <div className="agent-avatar" id="agent-avatar-char" style={{ background: "var(--primary)" }}>
             {agent.name.charAt(0).toUpperCase()}
@@ -305,6 +304,59 @@ export default function AgentDetails({ agent, ghlMessages = [], reportDate, onCl
           </div>
         </div>
 
+        {/* Breaks Timeline */}
+        <div className="details-section" style={{ borderTop: "1px solid var(--card-border)", paddingTop: "1rem", marginTop: "0.75rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+            <h3 style={{ margin: 0 }}>
+              <i className="fa-solid fa-mug-hot"></i> Workday Break Timeline ({calculatedBreaks.length} {calculatedBreaks.length === 1 ? 'break' : 'breaks'})
+            </h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700 }}>Min Duration:</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                <input
+                  type="number"
+                  min="1"
+                  max="1440"
+                  value={breakThresholdMinutes}
+                  onChange={(e) => {
+                    const val = Math.max(1, parseInt(e.target.value, 10) || 0);
+                    setBreakThresholdMinutes(val);
+                  }}
+                  style={{
+                    padding: "0.3rem 0.5rem",
+                    borderRadius: "6px",
+                    background: "var(--input-bg)",
+                    border: "1px solid var(--input-border)",
+                    color: "var(--text-primary)",
+                    fontSize: "0.78rem",
+                    width: "70px",
+                    outline: "none"
+                  }}
+                />
+                <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 600 }}>min</span>
+              </div>
+            </div>
+          </div>
+          <div className="timeline-list-container">
+            <ul className="timeline-list" id="inspect-breaks-list">
+              {calculatedBreaks.length > 0 ? (
+                calculatedBreaks.map((b, idx) => (
+                  <li key={idx}>
+                    <span>
+                      Break {idx + 1}: <span className="break-time">{formatIsoToTime(b.start)} - {formatIsoToTime(b.end)}</span>
+                    </span>
+                    <span className="break-duration">{formatSecondsToTime(b.duration)}</span>
+                  </li>
+                ))
+              ) : (
+                <li style={{ borderLeftColor: "var(--success)" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>No breaks recorded longer than {breakThresholdMinutes} minutes.</span>
+                </li>
+              )}
+            </ul>
+          </div>
+        </div>
+
         {/* Modules focus piecharts */}
         <div className="details-section" style={{ borderTop: "1px solid var(--card-border)", paddingTop: "1rem", marginTop: "0.75rem" }}>
           <h3>
@@ -317,7 +369,7 @@ export default function AgentDetails({ agent, ghlMessages = [], reportDate, onCl
         </div>
 
         {/* Dynamic Activity Filter Panel & Mini Activity Bar Chart */}
-        <div className="details-section" style={{ borderTop: "1px solid var(--card-border)", paddingTop: "1rem", marginTop: "0.75rem" }}>
+        <div className="details-section" style={{ borderTop: "1px solid var(--card-border)", paddingTop: "1rem", marginTop: "0.75rem", flex: 1, display: "flex", flexDirection: "column" }}>
           <h3 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
             <span><i className="fa-solid fa-filter"></i> Per-Agent Activity Inspector</span>
             <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>{filteredEvents.length} events matching</span>
@@ -403,7 +455,7 @@ export default function AgentDetails({ agent, ghlMessages = [], reportDate, onCl
           </div>
 
           {/* Event Details Logs List */}
-          <div style={{ maxHeight: "245px", overflowY: "auto", border: "1px solid var(--card-border)", borderRadius: "8px", background: "var(--bg-color)" }}>
+          <div style={{ flex: 1, overflowY: "auto", border: "1px solid var(--card-border)", borderRadius: "8px", background: "var(--bg-color)", minHeight: "200px" }}>
             {filteredEvents.length > 0 ? (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
                 <thead>
@@ -458,58 +510,6 @@ export default function AgentDetails({ agent, ghlMessages = [], reportDate, onCl
           </div>
         </div>
 
-        {/* Breaks Timeline */}
-        <div className="details-section" style={{ borderTop: "1px solid var(--card-border)", paddingTop: "1rem", marginTop: "0.75rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-            <h3 style={{ margin: 0 }}>
-              <i className="fa-solid fa-mug-hot"></i> Workday Break Timeline ({calculatedBreaks.length} {calculatedBreaks.length === 1 ? 'break' : 'breaks'})
-            </h3>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700 }}>Min Duration:</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                <input
-                  type="number"
-                  min="1"
-                  max="1440"
-                  value={breakThresholdMinutes}
-                  onChange={(e) => {
-                    const val = Math.max(1, parseInt(e.target.value, 10) || 0);
-                    setBreakThresholdMinutes(val);
-                  }}
-                  style={{
-                    padding: "0.3rem 0.5rem",
-                    borderRadius: "6px",
-                    background: "var(--input-bg)",
-                    border: "1px solid var(--input-border)",
-                    color: "var(--text-primary)",
-                    fontSize: "0.78rem",
-                    width: "70px",
-                    outline: "none"
-                  }}
-                />
-                <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 600 }}>min</span>
-              </div>
-            </div>
-          </div>
-          <div className="timeline-list-container">
-            <ul className="timeline-list" id="inspect-breaks-list">
-              {calculatedBreaks.length > 0 ? (
-                calculatedBreaks.map((b, idx) => (
-                  <li key={idx}>
-                    <span>
-                      Break {idx + 1}: <span className="break-time">{formatIsoToTime(b.start)} - {formatIsoToTime(b.end)}</span>
-                    </span>
-                    <span className="break-duration">{formatSecondsToTime(b.duration)}</span>
-                  </li>
-                ))
-              ) : (
-                <li style={{ borderLeftColor: "var(--success)" }}>
-                  <span style={{ color: "var(--text-secondary)" }}>No breaks recorded longer than {breakThresholdMinutes} minutes.</span>
-                </li>
-              )}
-            </ul>
-          </div>
-        </div>
       </div>
     </section>
   );

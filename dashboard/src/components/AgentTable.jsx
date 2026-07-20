@@ -2,9 +2,90 @@
 
 import React, { useState } from "react";
 
-export default function AgentTable({ agents, selectedAgent, onSelectAgent }) {
+export default function AgentTable({ 
+  agents, 
+  selectedAgent, 
+  onSelectAgent, 
+  ghlMessages = [], 
+  reportDate, 
+  breakThresholdMinutes, 
+  setBreakThresholdMinutes 
+}) {
   const [sortColumn, setSortColumn] = useState("actions");
   const [sortAsc, setSortAsc] = useState(false); // Default sort desc by actions like original
+
+  const getDynamicBreakCount = (agent, threshold) => {
+    const details = agent.details || {};
+    const actionsList = details.actions_list || [];
+    const callsList = agent.calls || [];
+
+    // Construct workday bounds (09:00 to 20:00) using reportDate
+    const targetDateStr = reportDate || "2026-07-17";
+    const parts = targetDateStr.split("-");
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const workdayStart = new Date(Date.UTC(year, month, day, 9, 0, 0));
+    const workdayEnd = new Date(Date.UTC(year, month, day, 20, 0, 0));
+
+    // Combine all activities
+    const list = [
+      ...actionsList.map(a => new Date(a.timestamp)),
+      ...callsList.map(c => new Date(c.timestamp))
+    ];
+
+    if (ghlMessages) {
+      const agentMsgs = ghlMessages.filter(m => m.agent === agent.name);
+      agentMsgs.forEach(m => {
+        list.push(new Date(m.time));
+      });
+    }
+
+    // Sort chronologically
+    list.sort((a, b) => a.getTime() - b.getTime());
+
+    const getWorkdayClampedGap = (rawStart, rawEnd) => {
+      const startMs = Math.max(rawStart.getTime(), workdayStart.getTime());
+      const endMs = Math.min(rawEnd.getTime(), workdayEnd.getTime());
+      if (endMs > startMs) {
+        return endMs - startMs;
+      }
+      return 0;
+    };
+
+    let breaksCount = 0;
+
+    // If there are no activities, the agent is on break for the entire workday
+    if (list.length === 0) {
+      const fullDayGap = getWorkdayClampedGap(workdayStart, workdayEnd);
+      if (fullDayGap / (60 * 1000) >= threshold) {
+        breaksCount++;
+      }
+      return breaksCount;
+    }
+
+    // 1. Initial Gap
+    const initialGapMs = getWorkdayClampedGap(workdayStart, list[0]);
+    if (initialGapMs / (60 * 1000) >= threshold) {
+      breaksCount++;
+    }
+
+    // 2. Intermediate Gaps
+    for (let i = 1; i < list.length; i++) {
+      const intermediateGapMs = getWorkdayClampedGap(list[i - 1], list[i]);
+      if (intermediateGapMs / (60 * 1000) >= threshold) {
+        breaksCount++;
+      }
+    }
+
+    // 3. Final Gap
+    const finalGapMs = getWorkdayClampedGap(list[list.length - 1], workdayEnd);
+    if (finalGapMs / (60 * 1000) >= threshold) {
+      breaksCount++;
+    }
+
+    return breaksCount;
+  };
 
   const formatSecondsToTime = (seconds) => {
     const sec = Math.round(seconds);
@@ -48,8 +129,8 @@ export default function AgentTable({ agents, selectedAgent, onSelectAgent }) {
           valB = b.active;
           break;
         case "breaks":
-          valA = a.breaks;
-          valB = b.breaks;
+          valA = getDynamicBreakCount(a, breakThresholdMinutes);
+          valB = getDynamicBreakCount(b, breakThresholdMinutes);
           break;
         default:
           valA = a.name;
@@ -72,10 +153,36 @@ export default function AgentTable({ agents, selectedAgent, onSelectAgent }) {
 
   return (
     <section className="card table-card" style={{ flex: 1.3 }}>
-      <div className="card-header split-header">
+      <div className="card-header split-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
         <h2>
           <i className="fa-solid fa-list-check"></i> Agent Comparison Table
         </h2>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700 }}>Break Threshold:</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+            <input
+              type="number"
+              min="1"
+              max="1440"
+              value={breakThresholdMinutes}
+              onChange={(e) => {
+                const val = Math.max(1, parseInt(e.target.value, 10) || 0);
+                setBreakThresholdMinutes(val);
+              }}
+              style={{
+                padding: "0.3rem 0.5rem",
+                borderRadius: "6px",
+                background: "var(--input-bg)",
+                border: "1px solid var(--input-border)",
+                color: "var(--text-primary)",
+                fontSize: "0.78rem",
+                width: "60px",
+                outline: "none"
+              }}
+            />
+            <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 600 }}>min</span>
+          </div>
+        </div>
       </div>
       <div className="table-container">
         <table id="agent-table">
@@ -118,7 +225,7 @@ export default function AgentTable({ agents, selectedAgent, onSelectAgent }) {
                   <td style={{ fontWeight: 700, color: "var(--success)" }}>{formatSecondsToTime(agent.active)}</td>
                   <td>
                     <span className="badge" style={{ backgroundColor: "var(--warning-glow)", color: "var(--warning)" }}>
-                      {agent.breaks}
+                      {getDynamicBreakCount(agent, breakThresholdMinutes)}
                     </span>
                   </td>
                 </tr>

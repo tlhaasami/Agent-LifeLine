@@ -2080,3 +2080,46 @@ select option {
     color: var(--text-primary) !important;
     padding: 0.5rem !important;
 }
+
+/* Print styles to ensure clean, professional PDF outputs */
+@media print {
+    /* Hide sidebar, dashboard header, and all elements marked with no-print */
+    .sidebar,
+    .sidebar-wrapper,
+    .no-print,
+    header,
+    button,
+    select,
+    input,
+    .nav-toggle,
+    #sidebar-menu-btn,
+    .header-controls {
+        display: none !important;
+    }
+
+    /* Reset background and shadow limits for printable canvas */
+    body, html {
+        background: white !important;
+        color: black !important;
+    }
+
+    /* Expand main report page content to full width */
+    main,
+    .main-content,
+    .dashboard-container,
+    .dashboard-split,
+    .dashboard-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #e2e8f0 !important;
+        background: white !important;
+        page-break-inside: avoid;
+    }
+}
