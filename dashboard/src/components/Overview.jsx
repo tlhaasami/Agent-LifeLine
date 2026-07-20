@@ -244,7 +244,7 @@ export default function Overview({ agents, stageChanges = {}, reportDate = "2026
               <div
                 style={{
                   position: "absolute",
-                  top: "105%",
+                  bottom: "105%",
                   right: 0,
                   background: "var(--card-bg)",
                   border: "1px solid var(--card-border)",

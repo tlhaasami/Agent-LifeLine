@@ -1197,7 +1197,7 @@ export default function Home() {
               </div>
 
               <div style={{ flex: 1, minWidth: "300px", display: "flex", flexDirection: "column" }}>
-                <AgentDetails agent={selectedAgent} onClose={() => setSelectedAgent(null)} />
+                <AgentDetails agent={selectedAgent} ghlMessages={ghlOutboundMessages} reportDate={reportDate} onClose={() => setSelectedAgent(null)} />
               </div>
             </div>
           </div>
