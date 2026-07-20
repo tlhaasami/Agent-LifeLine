@@ -185,7 +185,8 @@ export function processAgentData(
   targetDateStr = "2026-07-17",
   maxBreakGapMinutes = 30,
   nominalActionMinutes = 5,
-  timezone = "BST"
+  timezone = "BST",
+  isMarginOnly = false
 ) {
   const oppCounts = {};
   const contactToAgent = {};
@@ -229,6 +230,19 @@ export function processAgentData(
     return null;
   };
 
+  // Helper to dynamically find date field values by patterns
+  const getRowDateField = (row, patterns, fallback) => {
+    if (!row) return "";
+    const keys = Object.keys(row);
+    for (const pat of patterns) {
+      const matchKey = keys.find(k => k && k.toLowerCase().includes(pat));
+      if (matchKey && row[matchKey]) {
+        return row[matchKey];
+      }
+    }
+    return row[fallback] || "";
+  };
+
   // 2. Process GHL Lead Segmentations (group by agent and count)
   const agentSegmentations = {};
   const initAgentSegment = (agent) => {
@@ -241,6 +255,7 @@ export function processAgentData(
         newLeadsToday: 0,
         bookedLeadsToday: 0,
         apptBookedLeadsToday: 0,
+        closedLeadsToday: 0,
         referrals: 0,
         referralsToday: 0,
       };
@@ -272,15 +287,47 @@ export function processAgentData(
     }
   });
 
+  // Build lookup sets for new leads shared today to enforce same-day conversion validation
+  const newLeadsPhones = new Set();
+  const newLeadsEmails = new Set();
+  const newLeadsIds = new Set();
+
+  newLeadsRows.forEach((row) => {
+    const bstCreated = toBST(row["Created on"], targetDateStr, timezone);
+    const createdToday = isJuly17BST(bstCreated, targetDateStr);
+    if (createdToday) {
+      const phone = (row["Phone number"] || row["phone"] || "").replace(/[^0-9+]/g, "").trim();
+      const email = (row["Email"] || row["email"] || "").trim().toLowerCase();
+      const oppId = (row["Opportunity ID"] || row["Opportunity ID"] || row["opportunityId"] || row["id"] || "").trim();
+
+      if (phone) newLeadsPhones.add(phone);
+      if (email) newLeadsEmails.add(email);
+      if (oppId) newLeadsIds.add(oppId);
+    }
+  });
+
   bookedLeadsRows.forEach((row) => {
     const agent = normalizeAgentName(row["Assigned user"] || row.assigned || findAgent(row["Phone number"], row["Opportunity name"]));
     if (!agent) return;
     initAgentSegment(agent);
     agentSegmentations[agent].bookedLeads++;
 
-    const bstCreated = toBST(row["Created on"], targetDateStr, timezone);
+    const rawDate = getRowDateField(row, ["booked time", "booked date", "booking time", "booking date", "booked at", "booked_time", "booked_date", "booking_time", "booking_date"], "Created on");
+    const bstCreated = toBST(rawDate, targetDateStr, timezone);
     if (isJuly17BST(bstCreated, targetDateStr)) {
-      agentSegmentations[agent].bookedLeadsToday++;
+      // Must be present in today's shared new leads list
+      const phone = (row["Phone number"] || row["phone"] || "").replace(/[^0-9+]/g, "").trim();
+      const email = (row["Email"] || row["email"] || "").trim().toLowerCase();
+      const oppId = (row["Opportunity ID"] || row["Opportunity ID"] || row["opportunityId"] || row["id"] || "").trim();
+
+      const isNewSharedLead = 
+        (phone && newLeadsPhones.has(phone)) ||
+        (email && newLeadsEmails.has(email)) ||
+        (oppId && newLeadsIds.has(oppId));
+
+      if (isNewSharedLead) {
+        agentSegmentations[agent].bookedLeadsToday++;
+      }
     }
   });
 
@@ -290,9 +337,22 @@ export function processAgentData(
     initAgentSegment(agent);
     agentSegmentations[agent].apptBookedLeads++;
 
-    const bstCreated = toBST(row["Created on"], targetDateStr, timezone);
+    const rawDate = getRowDateField(row, ["appointment date", "appointment time", "appointment_date", "appointment_time", "appt date", "appt time", "appt_date", "appt_time", "appointment"], "Created on");
+    const bstCreated = toBST(rawDate, targetDateStr, timezone);
     if (isJuly17BST(bstCreated, targetDateStr)) {
-      agentSegmentations[agent].apptBookedLeadsToday++;
+      // Must be present in today's shared new leads list
+      const phone = (row["Phone number"] || row["phone"] || "").replace(/[^0-9+]/g, "").trim();
+      const email = (row["Email"] || row["email"] || "").trim().toLowerCase();
+      const oppId = (row["Opportunity ID"] || row["Opportunity ID"] || row["opportunityId"] || row["id"] || "").trim();
+
+      const isNewSharedLead = 
+        (phone && newLeadsPhones.has(phone)) ||
+        (email && newLeadsEmails.has(email)) ||
+        (oppId && newLeadsIds.has(oppId));
+
+      if (isNewSharedLead) {
+        agentSegmentations[agent].apptBookedLeadsToday++;
+      }
     }
   });
 
@@ -301,6 +361,12 @@ export function processAgentData(
     if (!agent) return;
     initAgentSegment(agent);
     agentSegmentations[agent].closedLeads++;
+
+    const rawDate = getRowDateField(row, ["closed date", "closed time", "closed_date", "closed_time", "date closed", "date_closed", "closed at"], "Created on");
+    const bstCreated = toBST(rawDate, targetDateStr, timezone);
+    if (isJuly17BST(bstCreated, targetDateStr)) {
+      agentSegmentations[agent].closedLeadsToday++;
+    }
   });
 
   // 3. Process Call logs to BST standard
@@ -401,15 +467,21 @@ export function processAgentData(
   // 5. Margin summation on July 17, 2026 BST
   const agentMargins = {};
   opportunitiesRows.forEach((row) => {
-    const assigned = row.assigned || row.Assigned;
-    if (!assigned) return;
+    const assignedRaw = row.assigned || row.Assigned || row["Assigned user"];
+    if (!assignedRaw) return;
+    const assigned = normalizeAgentName(assignedRaw);
 
-    const marginAddedDate = row["Margin Added Date"] || row["margin_added_date"];
-    const bstMarginDate = toBST(marginAddedDate, targetDateStr, timezone);
-
-    if (isJuly17BST(bstMarginDate, targetDateStr)) {
-      const marginVal = parseFloat(row["Margin Amount"] || row["Margin value"] || row["Lead Value"] || 0);
+    if (isMarginOnly) {
+      const marginVal = parseFloat(row["Margin Amount"] || row["Margin value"] || row["Lead Value"] || row["Lead value"] || 0);
       agentMargins[assigned] = (agentMargins[assigned] || 0) + marginVal;
+    } else {
+      const marginAddedDate = row["Margin Added Date"] || row["margin_added_date"];
+      const bstMarginDate = toBST(marginAddedDate, targetDateStr, "BST");
+
+      if (isJuly17BST(bstMarginDate, targetDateStr)) {
+        const marginVal = parseFloat(row["Margin Amount"] || row["Margin value"] || row["Lead Value"] || row["Lead value"] || 0);
+        agentMargins[assigned] = (agentMargins[assigned] || 0) + marginVal;
+      }
     }
   });
 
@@ -543,6 +615,9 @@ export function processAgentData(
       newLeadsToday: 0,
       bookedLeadsToday: 0,
       apptBookedLeadsToday: 0,
+      closedLeadsToday: 0,
+      referrals: 0,
+      referralsToday: 0,
     };
 
     // Table 1 Calculations

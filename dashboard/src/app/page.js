@@ -46,6 +46,7 @@ export default function Home() {
 
   const [reportDate, setReportDate] = useState("2026-07-17");
   const [timezone, setTimezone] = useState("BST");
+  const [syncConversations, setSyncConversations] = useState(false);
   const [showGhlMessages, setShowGhlMessages] = useState(true);
   const [ghlOutboundMessages, setGhlOutboundMessages] = useState([]);
   const [breakThresholdMinutes, setBreakThresholdMinutes] = useState(30);
@@ -214,8 +215,9 @@ export default function Home() {
               })
             });
             const msgData = await msgRes.json();
-            if (msgData.messages && Array.isArray(msgData.messages)) {
-              msgData.messages.forEach(m => {
+            const pageMsgs = (msgData.messages && msgData.messages.messages) || [];
+            if (Array.isArray(pageMsgs)) {
+              pageMsgs.forEach(m => {
                 const mDate = getLocalDateString(m.dateAdded, tz);
                 if (mDate === targetDate && m.direction === "outbound" && m.type !== "TYPE_CALL" && m.messageType !== "TYPE_CALL") {
                   outboundMsgs.push({
@@ -419,7 +421,7 @@ export default function Home() {
 
     files.forEach((file) => {
       const name = file.name.toLowerCase();
-      if (name.includes("opportunity") || name.includes("opportunities")) {
+      if (name.includes("opportunity") || name.includes("opportunities") || name.includes("margin")) {
         identifiedOpps = file;
       } else if (
         name.includes("call-report") ||
@@ -466,14 +468,15 @@ export default function Home() {
   const processUploadedFiles = async () => {
     if (auditFiles.length === 0) return;
 
-    // Initialize processing steps
+    // Initialize processing steps (7 detailed steps to keep user updated)
     const steps = [
       { id: "read-audit", name: `Parsing ${auditFiles.length} GHL Agent Log file(s)`, status: "processing" },
       { id: "read-opps", name: "Parsing CRM Opportunities Master", status: "pending" },
       { id: "read-calls", name: "Parsing Call Report Logs", status: "pending" },
       { id: "read-segments", name: "Parsing Lead Segmentation files", status: "pending" },
-      { id: "align-bst", name: "Standardizing activity timelines to BST", status: "pending" },
-      { id: "compile", name: "Compiling metrics & building dashboard layout", status: "pending" }
+      { id: "compile", name: "Compiling CSV metrics & activity logs", status: "pending" },
+      { id: "ghl-sync", name: "Syncing outbound conversations & calls from GHL API", status: "pending" },
+      { id: "build-dashboard", name: "Generating dashboard charts & unified JSON", status: "pending" }
     ];
 
     setProcessingState({
@@ -496,7 +499,7 @@ export default function Home() {
       steps[1].status = "processing";
       setProcessingState({
         steps: [...steps],
-        progressPercent: 20
+        progressPercent: 15
       });
 
       // Step 2: Read Opportunities Master
@@ -512,7 +515,7 @@ export default function Home() {
       steps[2].status = "processing";
       setProcessingState({
         steps: [...steps],
-        progressPercent: 40
+        progressPercent: 30
       });
 
       // Step 3: Read Call report
@@ -528,7 +531,7 @@ export default function Home() {
       steps[3].status = "processing";
       setProcessingState({
         steps: [...steps],
-        progressPercent: 60
+        progressPercent: 45
       });
 
       // Step 4: Lead segmentations
@@ -562,11 +565,12 @@ export default function Home() {
       steps[4].status = "processing";
       setProcessingState({
         steps: [...steps],
-        progressPercent: 75
+        progressPercent: 60
       });
 
       // Step 5: BST Alignment & compile data
       await new Promise(resolve => setTimeout(resolve, 600));
+      const isMarginOnly = oppsFile && oppsFile.name.toLowerCase().includes("margin");
       const processed = processAgentData(
         auditRows,
         oppsRows,
@@ -578,20 +582,39 @@ export default function Home() {
         reportDate,
         30,
         5,
-        timezone
+        timezone,
+        isMarginOnly
       );
 
       setRawAnalysisData(processed);
 
-      // Update after Step 5
+      // Update after Step 5 (Now starting GHL live conversations fetch)
       steps[4].status = "done";
       steps[5].status = "processing";
+      setProcessingState({
+        steps: [...steps],
+        progressPercent: 75
+      });
+
+      // Step 6: Fetch GHL Outbound Messages & Calls for the selected reportDate
+      let msgList = [];
+      if (syncConversations && ghlToken && ghlLocationId) {
+        setProcessStatus("Fetching live GHL conversations & outbound messages...");
+        msgList = await fetchGhlOutboundMessages(reportDate, ghlToken, ghlLocationId, timezone);
+      } else {
+        msgList = []; // empty by default when syncConversations is false
+      }
+      setGhlOutboundMessages(msgList);
+
+      // Update after Step 6 (Now mapping final agent objects & building dashboards)
+      steps[5].status = "done";
+      steps[6].status = "processing";
       setProcessingState({
         steps: [...steps],
         progressPercent: 90
       });
 
-      // Step 6: Map to final structured agent objects
+      // Step 7: Map to final structured agent objects
       await new Promise(resolve => setTimeout(resolve, 600));
       const parsed = Object.entries(processed.agents)
         .map(([name, stats]) => {
@@ -633,18 +656,8 @@ export default function Home() {
       setIsCustomData(true);
       setSelectedAgent(null);
 
-      // Fetch GHL Outbound Messages for the selected reportDate
-      let msgList = [];
-      if (ghlToken && ghlLocationId) {
-        setProcessStatus("Fetching live GHL conversations & outbound messages...");
-        msgList = await fetchGhlOutboundMessages(reportDate, ghlToken, ghlLocationId, timezone);
-      } else {
-        msgList = getMockOutboundMessages(reportDate);
-      }
-      setGhlOutboundMessages(msgList);
-
-      // Complete
-      steps[5].status = "done";
+      // Complete everything!
+      steps[6].status = "done";
       setProcessingState({
         steps: [...steps],
         progressPercent: 100
@@ -849,6 +862,23 @@ export default function Home() {
                       <option value="BST">British Summer Time (BST, UTC+1)</option>
                       <option value="PKT">Pakistan Standard Time (PKT, UTC+5)</option>
                     </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, marginBottom: "0.4rem", color: "var(--text-secondary)" }}>
+                      Live API Sync
+                    </label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", height: "35px" }}>
+                      <input
+                        type="checkbox"
+                        id="sync-conversations-checkbox"
+                        checked={syncConversations}
+                        onChange={(e) => setSyncConversations(e.target.checked)}
+                        style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "var(--primary)" }}
+                      />
+                      <label htmlFor="sync-conversations-checkbox" style={{ fontSize: "0.8rem", color: "var(--text-primary)", cursor: "pointer", userSelect: "none" }}>
+                        Pull live chat messages
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, marginBottom: "0.4rem", color: "var(--text-secondary)" }}>

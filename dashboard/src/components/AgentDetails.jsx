@@ -493,6 +493,8 @@ export default function AgentDetails({ agent, ghlMessages = [], reportDate, brea
                         <td style={{ padding: "0.5rem", color: "var(--text-secondary)", fontSize: "0.74rem" }}>
                           {isCall ? (
                             <span>{ev.contact_name} ({ev.duration})</span>
+                          ) : ev.type === "message" ? (
+                            <span>To {ev.contact_name || "Contact"}: <strong style={{ color: "var(--text-primary)" }}>"{ev.body}"</strong></span>
                           ) : (
                             <span>{getActionSummary(ev) || `${ev.action} event triggered`}</span>
                           )}

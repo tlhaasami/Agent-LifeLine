@@ -513,6 +513,51 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
     }
   };
 
+  const handleJsonExport = () => {
+    const unifiedData = {
+      date: reportDate,
+      summary: {
+        total_agents: agents.length,
+        total_calls: bstCallsList?.length || 0,
+        total_actions: bstUpdatesList?.length || 0,
+        total_ghl_messages: ghlMessages?.length || 0
+      },
+      agents: agents.map(a => ({
+        name: a.name,
+        actions: a.actions,
+        opps: a.opps,
+        span: a.span,
+        active: a.active,
+        breaks: a.breaks,
+        breakDuration: a.breakDuration,
+        firstAction: a.firstAction,
+        lastAction: a.lastAction,
+        segmentations: a.segmentations,
+        margin_added_today: a.margin_added_today,
+        stage_interested_today: a.stage_interested_today,
+        stage_contacted_today: a.stage_contacted_today,
+        notes_updated_today: a.notes_updated_today,
+        general_conv_rate: a.general_conv_rate,
+        new_leads_today: a.new_leads_today,
+        referrals_today: a.referrals_today,
+        converted_today: a.converted_today,
+        today_conv_rate: a.today_conv_rate,
+        call_metrics: a.call_metrics
+      })),
+      calls: bstCallsList || [],
+      audit_logs: bstUpdatesList || [],
+      ghl_outbound_messages: ghlMessages || []
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(unifiedData, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `lifeline_report_${reportDate}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
   const handlePrint = () => {
     const reportDateFormatted = new Date(reportDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
 
@@ -1620,8 +1665,8 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
           )}
 
           {hoveredItem && (
-            <div className="tooltip" style={{ left: `${hoveredItem.x + 15}px`, top: `${hoveredItem.y + 15}px`, display: "flex", opacity: 1 }}>
-              <div className="tooltip-title">{hoveredItem.agent}</div>
+            <div className="tooltip" style={{ left: `${hoveredItem.x + 15}px`, top: `${hoveredItem.y + 15}px`, display: "flex", opacity: 1, maxWidth: "320px", flexDirection: "column" }}>
+              <div className="tooltip-title" style={{ fontWeight: 800 }}>{hoveredItem.agent}</div>
               <div className="tooltip-row">
                 <span className="tooltip-label">Type:</span>
                 <span className="tooltip-value" style={{ color: hoveredItem.type === "message" ? "#38bdf8" : (hoveredItem.type === "update" ? "#818cf8" : "#fb923c") }}>
@@ -1636,6 +1681,11 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
                 <span className="tooltip-label">Time:</span>
                 <span className="tooltip-value">{formatBSTTime(hoveredItem.time)} BST</span>
               </div>
+              {hoveredItem.type === "message" && hoveredItem.data?.body && (
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", marginTop: "6px", paddingTop: "6px", fontSize: "0.75rem", color: "#e2e8f0", fontStyle: "italic", whiteSpace: "normal", wordBreak: "break-word", lineHeight: "1.3" }}>
+                  "{hoveredItem.data.body}"
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -2175,6 +2225,20 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
                     <i className="fa-solid fa-download"></i> Download Table 3 (Call Analytics)
                   </button>
                 </div>
+              </div>
+
+              {/* JSON Column */}
+              <div style={{ border: "1px solid var(--card-border)", borderRadius: "12px", padding: "1.5rem", background: "rgba(255,255,255,0.01)", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  <i className="fa-solid fa-code" style={{ fontSize: "1.5rem", color: "#38bdf8" }}></i>
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>Unified Daily Record (JSON)</h3>
+                </div>
+                <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", minHeight: "40px" }}>
+                  Download a single unified database file compiling all parsed spreadsheets, GHL API calls, and audit timeline records.
+                </p>
+                <button className="btn-primary-small" onClick={handleJsonExport} style={{ textAlign: "center", width: "100%", background: "rgba(56, 189, 248, 0.12)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.25)", padding: "0.65rem 1rem" }}>
+                  <i className="fa-solid fa-download"></i> Download Unified JSON
+                </button>
               </div>
             </div>
           </section>

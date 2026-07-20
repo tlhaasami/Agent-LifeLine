@@ -9,6 +9,10 @@ export default function AgentCharts({ agents }) {
     .map(a => ({ name: a.name, value: a.segmentations?.newLeads || 0 }))
     .sort((a, b) => b.value - a.value);
 
+  const referralsData = agents
+    .map(a => ({ name: a.name, value: a.segmentations?.referrals || 0 }))
+    .sort((a, b) => b.value - a.value);
+
   const bookedLeadsData = agents
     .map(a => ({ name: a.name, value: a.segmentations?.bookedLeads || 0 }))
     .sort((a, b) => b.value - a.value);
@@ -38,7 +42,7 @@ export default function AgentCharts({ agents }) {
         </p>
       </section>
 
-      {/* 2x2 Grid for the 4 Lead Stages + Margin Row */}
+      {/* 2x2 Grid for the Lead Stages + Referrals + Margin Row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(480px, 100%), 1fr))", gap: "1.5rem" }}>
         
         {/* 1. New Leads Chart */}
@@ -49,7 +53,15 @@ export default function AgentCharts({ agents }) {
           yLabel="Count of Opportunity"
         />
 
-        {/* 2. Booked Leads Chart */}
+        {/* 2. Referrals Chart */}
+        <ProgressBarChart
+          title="Referrals"
+          data={referralsData}
+          color="#818cf8" /* themed indigo */
+          yLabel="Count of Opportunity"
+        />
+
+        {/* 3. Booked Leads Chart */}
         <ProgressBarChart
           title="Booked Leads"
           data={bookedLeadsData}
@@ -57,7 +69,7 @@ export default function AgentCharts({ agents }) {
           yLabel="Count of Opportunity"
         />
 
-        {/* 3. Appointment Booked Chart */}
+        {/* 4. Appointment Booked Chart */}
         <ProgressBarChart
           title="Appointment Booked Leads"
           data={apptBookedData}
@@ -65,7 +77,7 @@ export default function AgentCharts({ agents }) {
           yLabel="Count of Opportunity"
         />
 
-        {/* 4. Closed Leads Chart */}
+        {/* 5. Closed Leads Chart */}
         <ProgressBarChart
           title="Closed Leads"
           data={closedLeadsData}
@@ -73,7 +85,7 @@ export default function AgentCharts({ agents }) {
           yLabel="Count of Opportunity"
         />
 
-        {/* 5. Margin Contributed Today Chart */}
+        {/* 6. Margin Contributed Today Chart */}
         <div style={{ gridColumn: "1 / -1" }}>
           <ProgressBarChart
             title="Margin Contributed Today ($)"
