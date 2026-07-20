@@ -12,6 +12,7 @@ import AgentCharts from "@/components/AgentCharts";
 import ConversationsWorkspace from "@/components/ConversationsWorkspace";
 import { parseCSV } from "@/utils/csvParser";
 import { processAgentData } from "@/utils/analysisEngine";
+import CustomDatePicker from "@/components/CustomDatePicker";
 
 export default function Home() {
   const [agentsList, setAgentsList] = useState([]);
@@ -44,6 +45,7 @@ export default function Home() {
   const [ghlLocationId, setGhlLocationId] = useState("");
 
   const [reportDate, setReportDate] = useState("2026-07-17");
+  const [timezone, setTimezone] = useState("BST");
   const [showGhlMessages, setShowGhlMessages] = useState(true);
   const [ghlOutboundMessages, setGhlOutboundMessages] = useState([]);
   const [breakThresholdMinutes, setBreakThresholdMinutes] = useState(30);
@@ -114,8 +116,26 @@ export default function Home() {
     return list;
   };
 
+  const getLocalDateString = (dateStrOrObj, tz = "BST") => {
+    if (!dateStrOrObj) return "";
+    const date = new Date(dateStrOrObj);
+    if (isNaN(date.getTime())) return "";
+    const tzName = tz === "PKT" ? "Asia/Karachi" : "Europe/London";
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: tzName,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parts.find(p => p.type === "year").value;
+    const month = parts.find(p => p.type === "month").value;
+    const day = parts.find(p => p.type === "day").value;
+    return `${year}-${month}-${day}`;
+  };
+
   // Live GHL API fetch helper
-  const fetchGhlOutboundMessages = async (targetDate, token, locationId) => {
+  const fetchGhlOutboundMessages = async (targetDate, token, locationId, tz = "BST") => {
     try {
       if (!token || !locationId) {
         throw new Error("Missing GHL API credentials");
@@ -178,7 +198,7 @@ export default function Home() {
           const lastMsgDate = c.lastMessageDate || c.dateUpdated || c.dateCreated;
           if (!lastMsgDate) continue;
 
-          const dateStr = lastMsgDate.split("T")[0];
+          const dateStr = getLocalDateString(lastMsgDate, tz);
           if (dateStr === targetDate) {
             const assignedUserId = c.assignedTo;
             const mappedAgentName = userMap[assignedUserId] || "Unassigned";
@@ -196,7 +216,7 @@ export default function Home() {
             const msgData = await msgRes.json();
             if (msgData.messages && Array.isArray(msgData.messages)) {
               msgData.messages.forEach(m => {
-                const mDate = m.dateAdded.split("T")[0];
+                const mDate = getLocalDateString(m.dateAdded, tz);
                 if (mDate === targetDate && m.direction === "outbound" && m.type !== "TYPE_CALL" && m.messageType !== "TYPE_CALL") {
                   outboundMsgs.push({
                     id: m.id,
@@ -215,7 +235,7 @@ export default function Home() {
         // Pagination check
         const lastConv = convData.conversations[convData.conversations.length - 1];
         const lastConvDate = lastConv.lastMessageDate || lastConv.dateUpdated || lastConv.dateCreated;
-        if (lastConvDate && lastConvDate.split("T")[0] >= targetDate) {
+        if (lastConvDate && getLocalDateString(lastConvDate, tz) >= targetDate) {
           currentStartAfterDate = lastConvDate;
         } else {
           hasMore = false;
@@ -310,13 +330,18 @@ export default function Home() {
               details: stats,
 
               // Extra reporting attributes defaults
-              segmentations: seg,
+              segmentations: {
+                ...seg,
+                referrals: seg.referrals || 0,
+                referralsToday: seg.referralsToday || 0,
+              },
               margin_added_today: stats.margin_added_today || 0,
               stage_interested_today: stats.stage_interested_today || 0,
               stage_contacted_today: stats.stage_contacted_today || 0,
               notes_updated_today: stats.notes_updated_today || 0,
               general_conv_rate: stats.general_conv_rate || 0,
               new_leads_today: stats.new_leads_today || 0,
+              referrals_today: stats.referrals_today || 0,
               converted_today: stats.converted_today || 0,
               today_conv_rate: stats.today_conv_rate || 0,
               call_metrics: callMetrics,
@@ -550,7 +575,10 @@ export default function Home() {
         bookedRows,
         apptRows,
         closedRows,
-        reportDate
+        reportDate,
+        30,
+        5,
+        timezone
       );
 
       setRawAnalysisData(processed);
@@ -587,6 +615,7 @@ export default function Home() {
             notes_updated_today: stats.notes_updated_today,
             general_conv_rate: stats.general_conv_rate,
             new_leads_today: stats.new_leads_today,
+            referrals_today: stats.segmentations.referralsToday || 0,
             converted_today: stats.converted_today,
             today_conv_rate: stats.today_conv_rate,
             call_metrics: stats.call_metrics,
@@ -608,7 +637,7 @@ export default function Home() {
       let msgList = [];
       if (ghlToken && ghlLocationId) {
         setProcessStatus("Fetching live GHL conversations & outbound messages...");
-        msgList = await fetchGhlOutboundMessages(reportDate, ghlToken, ghlLocationId);
+        msgList = await fetchGhlOutboundMessages(reportDate, ghlToken, ghlLocationId, timezone);
       } else {
         msgList = getMockOutboundMessages(reportDate);
       }
@@ -689,13 +718,18 @@ export default function Home() {
               calls: stats.calls || [],
               details: stats,
 
-              segmentations: seg,
+              segmentations: {
+                ...seg,
+                referrals: seg.referrals || 0,
+                referralsToday: seg.referralsToday || 0,
+              },
               margin_added_today: stats.margin_added_today || 0,
               stage_interested_today: stats.stage_interested_today || 0,
               stage_contacted_today: stats.stage_contacted_today || 0,
               notes_updated_today: stats.notes_updated_today || 0,
               general_conv_rate: stats.general_conv_rate || 0,
               new_leads_today: stats.new_leads_today || 0,
+              referrals_today: stats.referrals_today || 0,
               converted_today: stats.converted_today || 0,
               today_conv_rate: stats.today_conv_rate || 0,
               call_metrics: callMetrics,
@@ -778,21 +812,28 @@ export default function Home() {
                 <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: 0 }}>
                   Configure your workspace target date and GoHighLevel credentials. Changing the date will automatically filter and sync activity logs and conversations.
                 </p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1.2rem", marginTop: "0.2rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.2rem", marginTop: "0.2rem" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, marginBottom: "0.4rem", color: "var(--text-secondary)" }}>
                       Target Report Date
                     </label>
-                    <input
-                      type="date"
+                    <CustomDatePicker
                       value={reportDate}
-                      onChange={(e) => {
-                        const val = e.target.value;
+                      onChange={(val) => {
                         setReportDate(val);
                         if (!isCustomData && !ghlToken && !ghlLocationId) {
                           setGhlOutboundMessages(getMockOutboundMessages(val));
                         }
                       }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, marginBottom: "0.4rem", color: "var(--text-secondary)" }}>
+                      Target Timezone
+                    </label>
+                    <select
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
                       style={{
                         width: "100%",
                         padding: "0.55rem 0.8rem",
@@ -801,9 +842,13 @@ export default function Home() {
                         border: "1px solid var(--input-border)",
                         color: "var(--text-primary)",
                         fontSize: "0.82rem",
-                        outline: "none"
+                        outline: "none",
+                        cursor: "pointer"
                       }}
-                    />
+                    >
+                      <option value="BST">British Summer Time (BST, UTC+1)</option>
+                      <option value="PKT">Pakistan Standard Time (PKT, UTC+5)</option>
+                    </select>
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, marginBottom: "0.4rem", color: "var(--text-secondary)" }}>

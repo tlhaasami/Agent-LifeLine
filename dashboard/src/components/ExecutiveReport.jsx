@@ -23,17 +23,17 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
   const [filterGhlMessages, setFilterGhlMessages] = useState(true);
   const [filterCalls, setFilterCalls] = useState(true);
   const [filterMissedOnly, setFilterMissedOnly] = useState(false);
-  const [filterNotesOnly, setFilterNotesOnly] = useState(false);
-  const [filterOppsOnly, setFilterOppsOnly] = useState(false);
-  const [filterContactsOnly, setFilterContactsOnly] = useState(false);
+  const [filterNotesOnly, setFilterNotesOnly] = useState(true);
+  const [filterOppsOnly, setFilterOppsOnly] = useState(true);
+  const [filterContactsOnly, setFilterContactsOnly] = useState(true);
 
   // Table 1 Customizer states
   const [table1Agents, setTable1Agents] = useState(agents.map(a => a.name));
-  const [table1VisibleCols, setTable1VisibleCols] = useState(["newLeads", "apptBooked", "closedLeads", "bookedLeads", "margin", "interested", "contacted", "notes", "generalConv"]);
+  const [table1VisibleCols, setTable1VisibleCols] = useState(["newLeads", "referrals", "apptBooked", "closedLeads", "bookedLeads", "margin", "interested", "contacted", "notes", "generalConv"]);
 
   // Table 2 Customizer states
   const [table2Agents, setTable2Agents] = useState(agents.map(a => a.name));
-  const [table2VisibleCols, setTable2VisibleCols] = useState(["newLeadsToday", "convertedToday", "todayConvRate"]);
+  const [table2VisibleCols, setTable2VisibleCols] = useState(["newLeadsToday", "referralsToday", "convertedToday", "todayConvRate"]);
 
   // Table 3 Customizer states
   const [table3Agents, setTable3Agents] = useState(agents.map(a => a.name));
@@ -50,6 +50,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
   // Columns metadata definitions
   const table1ColumnsMetadata = [
     { key: "newLeads", label: "New Leads" },
+    { key: "referrals", label: "Referrals" },
     { key: "apptBooked", label: "Appt Booked" },
     { key: "closedLeads", label: "Closed Leads" },
     { key: "bookedLeads", label: "Booked Leads" },
@@ -62,6 +63,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
 
   const table2ColumnsMetadata = [
     { key: "newLeadsToday", label: "Today's New Leads" },
+    { key: "referralsToday", label: "Today's Referrals" },
     { key: "convertedToday", label: "Today's Converted" },
     { key: "todayConvRate", label: "Today's Conversion Rate" },
   ];
@@ -294,15 +296,12 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
           (up) => up.agent === agent.name && up.time >= getMinTime() && up.time <= getMaxTime()
         );
 
-        const hasSpecificFilter = filterNotesOnly || filterOppsOnly || filterContactsOnly;
-        if (hasSpecificFilter) {
-          updatesForAgent = updatesForAgent.filter(up => {
-            if (up.module === "NOTE" && filterNotesOnly) return true;
-            if (up.module === "OPPORTUNITY" && filterOppsOnly) return true;
-            if (up.module === "CONTACT" && filterContactsOnly) return true;
-            return false;
-          });
-        }
+        updatesForAgent = updatesForAgent.filter(up => {
+          if (up.module === "NOTE") return filterNotesOnly;
+          if (up.module === "OPPORTUNITY") return filterOppsOnly;
+          if (up.module === "CONTACT") return filterContactsOnly;
+          return false;
+        });
 
         updatesForAgent.forEach((up) => {
           const xVal = getX(up.time.getTime(), displayWidth);
@@ -428,15 +427,12 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
         (up) => up.agent === agent.name && up.time >= getMinTime() && up.time <= getMaxTime()
       );
 
-      const hasSpecificFilter = filterNotesOnly || filterOppsOnly || filterContactsOnly;
-      if (hasSpecificFilter) {
-        updatesForAgent = updatesForAgent.filter(up => {
-          if (up.module === "NOTE" && filterNotesOnly) return true;
-          if (up.module === "OPPORTUNITY" && filterOppsOnly) return true;
-          if (up.module === "CONTACT" && filterContactsOnly) return true;
-          return false;
-        });
-      }
+      updatesForAgent = updatesForAgent.filter(up => {
+        if (up.module === "NOTE") return filterNotesOnly;
+        if (up.module === "OPPORTUNITY") return filterOppsOnly;
+        if (up.module === "CONTACT") return filterContactsOnly;
+        return false;
+      });
 
       for (const up of updatesForAgent) {
         const xVal = getX(up.time.getTime(), displayWidth);
@@ -522,6 +518,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
 
     let pdfTitle = "Executive Operations Report";
     let pdfFilename = `Executive_Report_${reportDate}.pdf`;
+    let canvasImageSrc = "";
 
     if (activeSection === "exec-conversion") {
       pdfTitle = "Agent Conversion Metrics Report";
@@ -532,52 +529,61 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
     } else if (activeSection === "exec-calls") {
       pdfTitle = "Call Analytics Metrics Report";
       pdfFilename = `Call_Analytics_Report_${reportDate}.pdf`;
+    } else if (activeSection === "exec-timeline") {
+      pdfTitle = "Visual Scatter Workday Timeline";
+      pdfFilename = `Scatter_Workday_Timeline_${reportDate}.pdf`;
+    } else if (activeSection === "exec-export" || activeSection === "executive-report") {
+      pdfTitle = "Agent Performance & Activity Report";
+      pdfFilename = `Agent_Performance_Report_${reportDate}.pdf`;
     }
 
     let reportBodyHTML = "";
 
-    if (!activeSection || activeSection === "exec-conversion" || activeSection === "executive-report") {
+    if (!activeSection || activeSection === "exec-conversion" || activeSection === "executive-report" || activeSection === "exec-export") {
       // Sort agents by margin_added_today descending
       const sortedAgents = [...agents].sort((a, b) => (b.margin_added_today || 0) - (a.margin_added_today || 0));
 
-      const table1RowsHTML = sortedAgents.map(a => {
+      const table1RowsHTML = sortedAgents.map((a, index) => {
         const seg = a.segmentations || {};
         const marginVal = typeof a.margin_added_today === "number" ? `$${a.margin_added_today.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : "$0.00";
+        const rowBg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
         return `
-          <tr>
-            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.name}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${seg.newLeads || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${seg.apptBookedLeads || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${seg.closedLeads || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${seg.bookedLeads || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center; color: #111;">${marginVal}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.stage_interested_today || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.stage_contacted_today || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.notes_updated_today || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.general_conv_rate?.toFixed(1) || "0.0"}%</td>
+          <tr style="background: ${rowBg};">
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; font-weight: bold; text-align: center; color: #1e293b;">${a.name}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${seg.newLeads || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${seg.referrals || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${seg.apptBookedLeads || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${seg.closedLeads || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${seg.bookedLeads || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; font-weight: bold; text-align: center; color: #0f172a;">${marginVal}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${a.stage_interested_today || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${a.stage_contacted_today || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${a.notes_updated_today || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; font-weight: bold; text-align: center; color: #0f172a;">${a.general_conv_rate?.toFixed(1) || "0.0"}%</td>
           </tr>
         `;
       }).join("");
 
       reportBodyHTML += `
         <!-- Section 1: Table 1 -->
-        <div style="margin-bottom: 1.5rem; page-break-inside: avoid;">
-          <div style="text-align: center; font-size: 8.5pt; font-style: italic; margin-bottom: 0.4rem; font-weight: bold;">
-            Table I: Agent Conversion, Margin (Sorted Descending), and Stage Segmentations
+        <div style="margin-bottom: 1.5rem; page-break-inside: avoid; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="border-left: 4px solid #1b365d; padding-left: 8px; color: #1b365d; font-weight: bold; font-size: 11pt; margin-top: 1.5rem; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px;">
+            1. Agent Conversion & Lead Metrics
           </div>
-          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000; font-size: 7.5pt; text-align: center; margin: 0 auto; table-layout: auto;">
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; font-size: 7.2pt; text-align: center; margin: 0 auto; table-layout: auto;">
             <thead>
-              <tr style="background: #f2f2f2; font-weight: bold;">
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">AGENT</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">NEW LEADS</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">APPT BOOKED</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">CLOSED</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">BOOKED</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">MARGIN ($)</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">INTERESTED</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">CONTACTED</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">NOTES</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 6.5pt; text-align: center; white-space: nowrap;">CONV. %</th>
+              <tr style="background: #3c5a78; color: #ffffff; font-weight: bold;">
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; width: 14%; white-space: nowrap;">AGENT</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">NEW LEADS</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">REFERRALS</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">APPT BOOKED</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">CLOSED LEADS</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">BOOKED LEADS</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">MARGIN</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">INTERESTED</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">CONTACTED</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">NOTES UPDATED</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; white-space: nowrap;">CONV. RATE</th>
               </tr>
             </thead>
             <tbody>
@@ -588,33 +594,36 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
       `;
     }
 
-    if (!activeSection || activeSection === "exec-sprints" || activeSection === "executive-report") {
+    if (!activeSection || activeSection === "exec-sprints" || activeSection === "executive-report" || activeSection === "exec-export") {
       const sortedAgents = [...agents].sort((a, b) => (b.converted_today || 0) - (a.converted_today || 0));
 
-      const table2RowsHTML = sortedAgents.map(a => {
+      const table2RowsHTML = sortedAgents.map((a, index) => {
+        const rowBg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
         return `
-          <tr>
-            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.name}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.new_leads_today || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${a.converted_today || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.today_conv_rate?.toFixed(1) || "0.0"}%</td>
+          <tr style="background: ${rowBg};">
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; font-weight: bold; text-align: center; color: #1e293b;">${a.name}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${a.new_leads_today || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${a.referrals_today || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${a.converted_today || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; font-weight: bold; text-align: center; color: #0f172a;">${a.today_conv_rate?.toFixed(1) || "0.0"}%</td>
           </tr>
         `;
       }).join("");
 
       reportBodyHTML += `
         <!-- Section 2: Table 2 -->
-        <div style="margin-bottom: 1.5rem; page-break-inside: avoid;">
-          <div style="text-align: center; font-size: 8.5pt; font-style: italic; margin-bottom: 0.4rem; font-weight: bold;">
-            Table II: Real-Time Lead Speed & Converted Ratios (Sorted Descending)
+        <div style="margin-bottom: 1.5rem; page-break-inside: avoid; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="border-left: 4px solid #1b365d; padding-left: 8px; color: #1b365d; font-weight: bold; font-size: 11pt; margin-top: 1.5rem; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px;">
+            2. Today's (${formattedGlossaryDate}) New Leads Conversion
           </div>
-          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000; font-size: 8pt; text-align: center; margin: 0 auto; table-layout: auto;">
+          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #cbd5e1; font-size: 7.2pt; text-align: center; margin: 0 auto; table-layout: auto;">
             <thead>
-              <tr style="background: #f2f2f2; font-weight: bold;">
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 7.2pt; text-align: center; white-space: nowrap;">AGENT</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 7.2pt; text-align: center; white-space: nowrap;">NEW LEADS TODAY</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 7.2pt; text-align: center; white-space: nowrap;">CONVERTED TODAY</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 7.2pt; text-align: center; white-space: nowrap;">CONVERSION RATE (%)</th>
+              <tr style="background: #3c5a78; color: #ffffff; font-weight: bold;">
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; width: 20%; white-space: nowrap;">AGENT</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; width: 20%; white-space: nowrap;">TODAY'S NEW LEADS</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; width: 20%; white-space: nowrap;">TODAY'S REFERRALS</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; width: 20%; white-space: nowrap;">TODAY'S CONVERTED</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; width: 20%; white-space: nowrap;">TODAY'S CONV. RATE</th>
               </tr>
             </thead>
             <tbody>
@@ -625,55 +634,56 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
       `;
     }
 
-    if (!activeSection || activeSection === "exec-calls" || activeSection === "executive-report") {
+    if (!activeSection || activeSection === "exec-calls" || activeSection === "executive-report" || activeSection === "exec-export") {
       const sortedAgents = [...agents].sort((a, b) => {
         const totalA = (a.call_metrics?.outboundCount || 0) + (a.call_metrics?.inboundCount || 0);
         const totalB = (b.call_metrics?.outboundCount || 0) + (b.call_metrics?.inboundCount || 0);
         return totalB - totalA;
       });
 
-      const table3RowsHTML = sortedAgents.map(a => {
+      const table3RowsHTML = sortedAgents.map((a, index) => {
         const call = a.call_metrics || {};
+        const rowBg = index % 2 === 0 ? "#ffffff" : "#f8fafc";
         return `
-          <tr>
-            <td style="border: 1px solid #000; padding: 4px 3px; font-weight: bold; text-align: center;">${a.name}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundCount || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundAttended || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundMissed || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundMinutes?.toFixed(1) || "0.0"}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.outboundAvgDuration?.toFixed(1) || "0.0"}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundCount || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundAttended || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundMissed || 0}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundMinutes?.toFixed(1) || "0.0"}</td>
-            <td style="border: 1px solid #000; padding: 4px 3px; text-align: center;">${call.inboundAvgDuration?.toFixed(1) || "0.0"}</td>
+          <tr style="background: ${rowBg};">
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; font-weight: bold; text-align: center; color: #1e293b;">${a.name}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.outboundCount || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.outboundAttended || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.outboundMissed || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.outboundMinutes?.toFixed(1) || "0.0"}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.outboundAvgDuration?.toFixed(1) || "0.0"}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.inboundCount || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.inboundAttended || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.inboundMissed || 0}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.inboundMinutes?.toFixed(1) || "0.0"}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px 4px; text-align: center; color: #334155;">${call.inboundAvgDuration?.toFixed(1) || "0.0"}</td>
           </tr>
         `;
       }).join("");
 
       reportBodyHTML += `
         <!-- Section 3: Table 3 -->
-        <div style="margin-bottom: 1.5rem; page-break-inside: avoid;">
-          <div style="text-align: center; font-size: 8.5pt; font-style: italic; margin-bottom: 0.4rem; font-weight: bold;">
-            Table III: Mapped Inbound & Outbound Communication Audits (Sorted Descending)
+        <div style="margin-bottom: 1.5rem; page-break-inside: avoid; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="border-left: 4px solid #1b365d; padding-left: 8px; color: #1b365d; font-weight: bold; font-size: 11pt; margin-top: 1.5rem; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px;">
+            3. Detailed Call Metrics (${formattedGlossaryDate} BST)
           </div>
-          <div style="text-align: center; font-size: 7.2pt; color: #555; margin-bottom: 0.5rem; font-style: italic;">
+          <div style="font-size: 7.2pt; color: #64748b; margin-bottom: 0.5rem; font-style: italic; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
             Glossary: OUT = Outbound | IN = Inbound | MINS = Total Call Minutes | AVG = Avg Duration | ANS = Answered | MISS = Missed
           </div>
-          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000; font-size: 7.2pt; text-align: center; margin: 0 auto; table-layout: auto;">
+          <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #cbd5e1; font-size: 7.2pt; text-align: center; margin: 0 auto; table-layout: auto;">
             <thead>
-              <tr style="background: #f2f2f2; font-weight: bold;">
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">AGENT</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. COUNT</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. ANS</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. MISS</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. MINS</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">OUT. AVG</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. COUNT</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. ANS</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. MISS</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. MINS</th>
-                <th style="border: 1px solid #000; padding: 5px 2px; font-size: 5.8pt; text-align: center; white-space: nowrap;">IN. AVG</th>
+              <tr style="background: #3c5a78; color: #ffffff; font-weight: bold;">
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.8pt; text-align: center; width: 15%; white-space: nowrap;">AGENT</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">OUT COUNT</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">OUT ATTENDED</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">OUT MISSED</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">OUT TOTAL MINS</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">OUT AVG (MINS)</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">IN COUNT</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">IN ATTENDED</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">IN MISSED</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">IN TOTAL MINS</th>
+                <th style="border: 1px solid #cbd5e1; padding: 5px 2px; font-size: 6.2pt; text-align: center; white-space: nowrap;">IN AVG (MINS)</th>
               </tr>
             </thead>
             <tbody>
@@ -684,33 +694,240 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
       `;
     }
 
-    // LaTeX styled HTML template string without glossary
-    const latexTemplate = `
-      <div style="font-family: 'Times New Roman', Times, Georgia, serif; color: #000; padding: 0.3in; background: #fff; line-height: 1.3; font-size: 10pt; width: 100%; box-sizing: border-box;">
-        <!-- Title Block -->
-        <div style="text-align: center; margin-bottom: 1rem;">
-          <h1 style="font-size: 15pt; font-weight: normal; margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 1px;">
+    if (activeSection === "exec-timeline" || activeSection === "exec-export" || activeSection === "executive-report" || !activeSection) {
+      if (canvasRef.current) {
+        // Canvas is already rendered — capture it directly
+        try {
+          const originalCanvas = canvasRef.current;
+          
+          const tempCanvas = document.createElement("canvas");
+          tempCanvas.width = originalCanvas.width;
+          tempCanvas.height = originalCanvas.height;
+          const tempCtx = tempCanvas.getContext("2d");
+
+          tempCtx.fillStyle = "#ffffff";
+          tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+          const isDark = document.body.classList.contains("dark-mode");
+          if (isDark) {
+            tempCtx.filter = "invert(1) hue-rotate(180deg)";
+          }
+
+          tempCtx.drawImage(originalCanvas, 0, 0);
+          canvasImageSrc = tempCanvas.toDataURL("image/png");
+        } catch (e) {
+          console.warn("Failed to get canvas data URL:", e);
+        }
+      } else {
+        // Canvas not rendered — draw the timeline on an offscreen canvas from data
+        try {
+          const pdfWidth = 1500; // high-res offscreen width
+          const filteredAgents = agents.filter(a => selectedAgents.includes(a.name));
+          const offscreenHeight = timelineTopMargin + timelineBottomMargin + Math.max(1, filteredAgents.length) * timelineRowHeight;
+
+          const offCanvas = document.createElement("canvas");
+          offCanvas.width = pdfWidth;
+          offCanvas.height = offscreenHeight;
+          const ctx = offCanvas.getContext("2d");
+
+          // White background
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, pdfWidth, offscreenHeight);
+
+          // Grid lines and time labels
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.08)";
+          ctx.lineWidth = 1;
+          ctx.font = "500 11px sans-serif";
+          ctx.fillStyle = "#64748b";
+          ctx.textAlign = "center";
+
+          const pdfStartMs = getMinTime().getTime();
+          const pdfEndMs = getMaxTime().getTime();
+          const pdfDrawDate = new Date(pdfStartMs);
+
+          while (pdfDrawDate.getTime() <= pdfEndMs) {
+            const xVal = getX(pdfDrawDate.getTime(), pdfWidth);
+            ctx.beginPath();
+            ctx.moveTo(xVal, timelineTopMargin - 10);
+            ctx.lineTo(xVal, offscreenHeight - timelineBottomMargin);
+            ctx.stroke();
+
+            const label = formatBSTTime(pdfDrawDate) + " BST";
+            ctx.fillStyle = "#64748b";
+            ctx.fillText(label, xVal, timelineTopMargin - 15);
+
+            pdfDrawDate.setUTCHours(pdfDrawDate.getUTCHours() + 1);
+          }
+
+          // Draw rows and scatter points for each agent
+          filteredAgents.forEach((agent, idx) => {
+            const rowTop = timelineTopMargin + idx * timelineRowHeight;
+            const yCenter = rowTop + timelineRowHeight / 2;
+
+            // Divider line
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.06)";
+            ctx.beginPath();
+            ctx.moveTo(0, rowTop + timelineRowHeight);
+            ctx.lineTo(pdfWidth, rowTop + timelineRowHeight);
+            ctx.stroke();
+
+            // Agent name label
+            ctx.fillStyle = "#1e293b";
+            ctx.font = "600 12px sans-serif";
+            ctx.textAlign = "left";
+            ctx.fillText(agent.name, 15, yCenter + 4);
+
+            // GHL Updates (purple dots)
+            if (filterGhlUpdates) {
+              let updatesForAgent = bstUpdatesList.filter(
+                (up) => up.agent === agent.name && up.time >= getMinTime() && up.time <= getMaxTime()
+              );
+              updatesForAgent = updatesForAgent.filter(up => {
+                if (up.module === "NOTE") return filterNotesOnly;
+                if (up.module === "OPPORTUNITY") return filterOppsOnly;
+                if (up.module === "CONTACT") return filterContactsOnly;
+                return false;
+              });
+              updatesForAgent.forEach((up) => {
+                const xVal = getX(up.time.getTime(), pdfWidth);
+                ctx.fillStyle = "#818cf8";
+                ctx.beginPath();
+                ctx.arc(xVal, yCenter, 5, 0, 2 * Math.PI);
+                ctx.fill();
+              });
+            }
+
+            // GHL Messages (sky blue dots)
+            if (filterGhlMessages && ghlMessages) {
+              let messagesForAgent = ghlMessages.filter(
+                (m) => m.agent === agent.name && new Date(m.time) >= getMinTime() && new Date(m.time) <= getMaxTime()
+              );
+              messagesForAgent.forEach((msg) => {
+                const xVal = getX(new Date(msg.time).getTime(), pdfWidth);
+                ctx.fillStyle = "#38bdf8";
+                ctx.beginPath();
+                ctx.arc(xVal, yCenter, 5, 0, 2 * Math.PI);
+                ctx.fill();
+              });
+            }
+
+            // Calls (orange triangles)
+            if (filterCalls) {
+              let callsForAgent = bstCallsList.filter(
+                (cl) => cl.agent === agent.name && cl.time >= getMinTime() && cl.time <= getMaxTime()
+              );
+              if (filterMissedOnly) {
+                callsForAgent = callsForAgent.filter(cl => cl.status && cl.status.toLowerCase() !== "answered");
+              }
+              callsForAgent.forEach((cl) => {
+                const xVal = getX(cl.time.getTime(), pdfWidth);
+                ctx.fillStyle = "#fb923c";
+                ctx.beginPath();
+                const size = 5.5;
+                ctx.moveTo(xVal, yCenter - size);
+                ctx.lineTo(xVal - size, yCenter + size - 1);
+                ctx.lineTo(xVal + size, yCenter + size - 1);
+                ctx.closePath();
+                ctx.fill();
+              });
+            }
+          });
+
+          canvasImageSrc = offCanvas.toDataURL("image/png");
+        } catch (e) {
+          console.warn("Failed to render offscreen timeline:", e);
+        }
+      }
+
+      reportBodyHTML += `
+        <!-- Section: Scatter Timeline Image -->
+        <div style="margin-top: 1.5rem; page-break-before: always; text-align: center; width: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="border-left: 4px solid #1b365d; padding-left: 8px; color: #1b365d; font-weight: bold; font-size: 11pt; margin-top: 1.5rem; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.5px; text-align: left;">
+            4. Agent Activity Graph (${startHour.toString().padStart(2, "0")}:00 - ${endHour.toString().padStart(2, "0")}:00 BST)
+          </div>
+          <div style="border: 1px solid #cbd5e1; padding: 10px; background: #fff; width: 100%; box-sizing: border-box; border-radius: 4px;">
+            ${canvasImageSrc ? `<img id="timeline-pdf-image" style="width: 100%; height: auto; display: block;" />` : `<div style="padding: 20px; font-style: italic; color: #64748b;">[Activity graph not available — Timeline tab must be loaded at least once]</div>`}
+          </div>
+        </div>
+      `;
+    }
+
+    let titleBlockHTML = "";
+    let glossaryBlockHTML = "";
+
+    if (activeSection === "exec-export" || activeSection === "executive-report" || !activeSection) {
+      titleBlockHTML = `
+        <div style="background: #1b365d; color: #ffffff; padding: 18px; text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 1.5rem; border-radius: 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          Agent Performance & Activity Report (${reportDateFormatted})
+        </div>
+      `;
+      glossaryBlockHTML = `
+        <div style="border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 8px; padding: 15px; margin-bottom: 1.5rem; font-size: 7.8pt; line-height: 1.45; color: #334155; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="font-size: 10.5pt; font-weight: bold; margin-bottom: 10px; border-left: 4px solid #1b365d; padding-left: 8px; color: #1b365d;">
+            Glossary & Metric Definitions
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+              <p style="margin: 0 0 6px 0;"><strong>New Leads:</strong> Total count of new leads assigned to the agent.</p>
+              <p style="margin: 0 0 6px 0;"><strong>Appt Booked / Booked Leads:</strong> Count of leads successfully converted to an appointment or booked status.</p>
+              <p style="margin: 0 0 6px 0;"><strong>Closed Leads:</strong> Leads that have been marked as closed (e.g., lost or disqualified).</p>
+              <p style="margin: 0 0 6px 0;"><strong>Margin ($):</strong> The total financial margin amount explicitly added or updated in the system.</p>
+              <p style="margin: 0 0 6px 0;"><strong>Interested / Contacted:</strong> The number of times an agent advanced a lead's pipeline stage to "Interested" or "Contacted" per the system audit trail.</p>
+              <p style="margin: 0 0 6px 0;"><strong>Notes Updated:</strong> Total number of CRM notes added/modified by the agent.</p>
+            </div>
+            <div>
+              <p style="margin: 0 0 6px 0;"><strong>General Conv. Rate:</strong> (Booked Leads &divide; Eligible Interacted Base) &times; 100. The "Eligible Interacted Base" safely excludes leads that are already Closed or have Appointments Booked.</p>
+              <p style="margin: 0 0 6px 0;"><strong>Today's New Leads:</strong> Leads that entered the system strictly on ${reportDateFormatted}.</p>
+              <p style="margin: 0 0 6px 0;"><strong>Today's Converted & Conv. Rate:</strong> Leads created today that have already been marked as Appt Booked or Booked, and their resulting percentage.</p>
+              <p style="margin: 0 0 6px 0;"><strong>Out / In Count:</strong> Total volume of outbound dialed calls or inbound received calls.</p>
+              <p style="margin: 0 0 6px 0;"><strong>Attended / Missed:</strong> Breakdown of calls answered versus missed/voicemail.</p>
+              <p style="margin: 0 0 6px 0;"><strong>Total / Avg (Mins):</strong> Aggregate talk time and the average duration per answered call.</p>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      titleBlockHTML = `
+        <div style="text-align: center; margin-bottom: 1.2rem; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <h1 style="font-size: 15pt; font-weight: bold; margin-bottom: 0.2rem; text-transform: uppercase; color: #1b365d; letter-spacing: 0.5px;">
             ${pdfTitle}
           </h1>
-          <div style="font-size: 9.5pt; font-style: italic; margin-bottom: 0.1rem;">
+          <div style="font-size: 9.5pt; font-style: italic; color: #475569; margin-bottom: 0.1rem;">
             LifeLine Agent Performance & Conversion Hub
           </div>
-          <div style="font-size: 9.5pt; margin-bottom: 0.8rem;">
+          <div style="font-size: 9.5pt; margin-bottom: 0.8rem; color: #475569;">
             Date: ${reportDateFormatted}
           </div>
-          <hr style="border: 0; border-top: 1.5px solid #000; margin: 0 auto; width: 25%;" />
+          <hr style="border: 0; border-top: 1.5px solid #1b365d; margin: 0 auto; width: 25%;" />
         </div>
+      `;
+    }
 
+    const latexTemplate = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; padding: 0.5in 0.6in; background: #fff; line-height: 1.35; font-size: 9pt; width: 100%; box-sizing: border-box;">
+        ${titleBlockHTML}
+        ${glossaryBlockHTML}
         ${reportBodyHTML}
       </div>
     `;
 
     const container = document.createElement("div");
-    container.style.width = "750px"; // standard letter size print width
+    container.style.width = "750px";
     container.innerHTML = latexTemplate;
 
+    // Force light-mode isolation wrapper to prevent dark theme CSS variables from bleeding in
+    const isolationWrapper = document.createElement("div");
+    isolationWrapper.style.cssText = `
+      position: fixed; left: -9999px; top: 0; z-index: -1;
+      background: #ffffff; color: #000000;
+      --bg-color: #ffffff; --card-bg: #ffffff; --text-primary: #0f172a; --text-secondary: #475569;
+      --card-border: #cbd5e1; --table-header: #f2f2f2; --table-hover: #f8fafc;
+    `;
+    isolationWrapper.appendChild(container);
+    document.body.appendChild(isolationWrapper);
+
     const opt = {
-      margin:       [0.4, 0.4, 0.4, 0.4],
+      margin:       [0.5, 0.55, 0.5, 0.55],
       filename:     pdfFilename,
       image:        { type: 'jpeg', quality: 0.98 },
       html2canvas:  { 
@@ -722,9 +939,34 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
     };
 
     const runHtml2Pdf = () => {
-      window.html2pdf().from(container).set(opt).save().catch(err => {
-        console.error("PDF generation error:", err);
-      });
+      const finishPdfGeneration = () => {
+        window.html2pdf().from(container).set(opt).save().then(() => {
+          // Clean up: remove isolation wrapper from DOM
+          if (isolationWrapper.parentNode) isolationWrapper.parentNode.removeChild(isolationWrapper);
+        }).catch(err => {
+          console.error("PDF generation error:", err);
+          if (isolationWrapper.parentNode) isolationWrapper.parentNode.removeChild(isolationWrapper);
+        });
+      };
+
+      if (canvasImageSrc) {
+        const imgEl = container.querySelector("#timeline-pdf-image");
+        if (imgEl) {
+          imgEl.onload = () => {
+            // Image is fully decoded in the container — safe to render PDF
+            setTimeout(() => finishPdfGeneration(), 100);
+          };
+          imgEl.onerror = () => {
+            console.warn("Container image failed to load, compiling without graph");
+            finishPdfGeneration();
+          };
+          imgEl.src = canvasImageSrc;
+        } else {
+          finishPdfGeneration();
+        }
+      } else {
+        finishPdfGeneration();
+      }
     };
 
     if (window.html2pdf) {
@@ -739,6 +981,202 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
       };
       document.body.appendChild(script);
     }
+  };
+
+  const handleDocx = () => {
+    // Re-use the same report compilation logic from handlePrint
+    const reportDateFormatted = new Date(reportDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+    let canvasImageSrc = "";
+
+    // Capture the timeline canvas if available
+    if (canvasRef.current) {
+      try {
+        const originalCanvas = canvasRef.current;
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = originalCanvas.width;
+        tempCanvas.height = originalCanvas.height;
+        const tempCtx = tempCanvas.getContext("2d");
+        tempCtx.fillStyle = "#ffffff";
+        tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        const isDark = document.body.classList.contains("dark-mode");
+        if (isDark) { tempCtx.filter = "invert(1) hue-rotate(180deg)"; }
+        tempCtx.drawImage(originalCanvas, 0, 0);
+        canvasImageSrc = tempCanvas.toDataURL("image/png");
+      } catch (e) { console.warn("Canvas capture failed for DOCX:", e); }
+    } else {
+      // Offscreen canvas fallback
+      try {
+        const pdfWidth = 1500;
+        const filteredAgents = agents.filter(a => selectedAgents.includes(a.name));
+        const offH = timelineTopMargin + timelineBottomMargin + Math.max(1, filteredAgents.length) * timelineRowHeight;
+        const offCanvas = document.createElement("canvas");
+        offCanvas.width = pdfWidth;
+        offCanvas.height = offH;
+        const ctx = offCanvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, pdfWidth, offH);
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.08)";
+        ctx.lineWidth = 1;
+        ctx.font = "500 11px sans-serif";
+        ctx.fillStyle = "#64748b";
+        ctx.textAlign = "center";
+        const pdfStartMs = getMinTime().getTime();
+        const pdfEndMs = getMaxTime().getTime();
+        const pdfDrawDate = new Date(pdfStartMs);
+        while (pdfDrawDate.getTime() <= pdfEndMs) {
+          const xVal = getX(pdfDrawDate.getTime(), pdfWidth);
+          ctx.beginPath(); ctx.moveTo(xVal, timelineTopMargin - 10); ctx.lineTo(xVal, offH - timelineBottomMargin); ctx.stroke();
+          ctx.fillStyle = "#64748b"; ctx.fillText(formatBSTTime(pdfDrawDate) + " BST", xVal, timelineTopMargin - 15);
+          pdfDrawDate.setUTCHours(pdfDrawDate.getUTCHours() + 1);
+        }
+        filteredAgents.forEach((agent, idx) => {
+          const rowTop = timelineTopMargin + idx * timelineRowHeight;
+          const yCenter = rowTop + timelineRowHeight / 2;
+          ctx.strokeStyle = "rgba(0, 0, 0, 0.06)"; ctx.beginPath(); ctx.moveTo(0, rowTop + timelineRowHeight); ctx.lineTo(pdfWidth, rowTop + timelineRowHeight); ctx.stroke();
+          ctx.fillStyle = "#1e293b"; ctx.font = "600 12px sans-serif"; ctx.textAlign = "left"; ctx.fillText(agent.name, 15, yCenter + 4);
+          if (filterGhlUpdates) {
+            bstUpdatesList.filter(up => up.agent === agent.name && up.time >= getMinTime() && up.time <= getMaxTime())
+              .filter(up => { if (up.module === "NOTE") return filterNotesOnly; if (up.module === "OPPORTUNITY") return filterOppsOnly; if (up.module === "CONTACT") return filterContactsOnly; return false; })
+              .forEach(up => { const xVal = getX(up.time.getTime(), pdfWidth); ctx.fillStyle = "#818cf8"; ctx.beginPath(); ctx.arc(xVal, yCenter, 5, 0, 2 * Math.PI); ctx.fill(); });
+          }
+          if (filterGhlMessages && ghlMessages) {
+            ghlMessages.filter(m => m.agent === agent.name && new Date(m.time) >= getMinTime() && new Date(m.time) <= getMaxTime())
+              .forEach(msg => { const xVal = getX(new Date(msg.time).getTime(), pdfWidth); ctx.fillStyle = "#38bdf8"; ctx.beginPath(); ctx.arc(xVal, yCenter, 5, 0, 2 * Math.PI); ctx.fill(); });
+          }
+          if (filterCalls) {
+            let calls = bstCallsList.filter(cl => cl.agent === agent.name && cl.time >= getMinTime() && cl.time <= getMaxTime());
+            if (filterMissedOnly) calls = calls.filter(cl => cl.status && cl.status.toLowerCase() !== "answered");
+            calls.forEach(cl => { const xVal = getX(cl.time.getTime(), pdfWidth); ctx.fillStyle = "#fb923c"; ctx.beginPath(); const s = 5.5; ctx.moveTo(xVal, yCenter - s); ctx.lineTo(xVal - s, yCenter + s - 1); ctx.lineTo(xVal + s, yCenter + s - 1); ctx.closePath(); ctx.fill(); });
+          }
+        });
+        canvasImageSrc = offCanvas.toDataURL("image/png");
+      } catch (e) { console.warn("Offscreen canvas failed for DOCX:", e); }
+    }
+
+    // Build agents sorted tables data
+    const sortedByMargin = [...agents].sort((a, b) => (b.margin_added_today || 0) - (a.margin_added_today || 0));
+    const sortedByConverted = [...agents].sort((a, b) => (b.converted_today || 0) - (a.converted_today || 0));
+    const sortedByCalls = [...agents].sort((a, b) => {
+      const totalA = (a.call_metrics?.outboundCount || 0) + (a.call_metrics?.inboundCount || 0);
+      const totalB = (b.call_metrics?.outboundCount || 0) + (b.call_metrics?.inboundCount || 0);
+      return totalB - totalA;
+    });
+
+    const thStyle = (widthVal) => `style="border: 1px solid #94a3b8; padding: 5px 3px; background: #3c5a78; color: #ffffff; font-weight: bold; font-size: 8pt; text-align: center; width: ${widthVal};"`;
+    const tdStyle = 'style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-size: 8pt; color: #334155;"';
+    const tdNameStyle = 'style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: bold; font-size: 8pt; color: #1e293b;"';
+    const tdBoldStyle = 'style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: bold; font-size: 8pt; color: #0f172a;"';
+
+    const docHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"><title>Agent Performance Report</title>
+      <!--[if gte mso 9]>
+      <xml>
+        <w:WordDocument>
+          <w:View>Print</w:View>
+          <w:Zoom>100</w:Zoom>
+          <w:DoNotOptimizeForBrowser/>
+        </w:WordDocument>
+      </xml>
+      <xml>
+        <o:OfficeDocumentSettings>
+          <o:PixelsPerInch>96</o:PixelsPerInch>
+        </o:OfficeDocumentSettings>
+      </xml>
+      <![endif]-->
+      <style>
+        @page {
+          size: 11in 8.5in;
+          margin: 0.75in 0.75in 0.75in 0.75in;
+        }
+        body { font-family: Calibri, Arial, sans-serif; color: #0f172a; font-size: 9.5pt; line-height: 1.35; margin: 0; padding: 0; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 12pt; table-layout: fixed; }
+        td, th { word-wrap: break-word; overflow: hidden; }
+        h1 { font-size: 15pt; color: #ffffff; background: #1b365d; padding: 12px; text-align: center; margin: 0 0 14pt 0; }
+        h2 { font-size: 11pt; color: #1b365d; border-left: 4px solid #1b365d; padding-left: 8px; margin-top: 16pt; margin-bottom: 8pt; text-transform: uppercase; }
+        .glossary { border: 1px solid #cbd5e1; background: #f8fafc; padding: 12px; margin-bottom: 14pt; font-size: 8.5pt; border-radius: 4px; }
+        .glossary h3 { color: #1b365d; margin: 0 0 6px 0; font-size: 10.5pt; }
+      </style></head><body>
+      <h1>Agent Performance &amp; Activity Report (${reportDateFormatted})</h1>
+      <div class="glossary">
+        <h3>Glossary &amp; Metric Definitions</h3>
+        <p style="margin:0 0 4px 0;"><b>New Leads:</b> Total count of new leads assigned. | <b>Appt Booked / Booked:</b> Leads converted to appointment/booked status. | <b>Closed:</b> Leads marked closed.</p>
+        <p style="margin:0 0 4px 0;"><b>Margin ($):</b> Financial margin added. | <b>Interested / Contacted:</b> Pipeline stage advances. | <b>Notes Updated:</b> CRM notes modified. | <b>Conv. Rate:</b> (Booked ÷ Eligible Base) × 100.</p>
+        <p style="margin:0;"><b>Today's Converted &amp; Rate:</b> Leads created today already booked. | <b>OUT/IN Count:</b> Outbound/Inbound call volume. | <b>Attended/Missed:</b> Calls answered vs missed. | <b>MINS/AVG:</b> Talk time and average per call.</p>
+      </div>
+
+      <h2>1. Agent Conversion &amp; Lead Metrics</h2>
+      <table style="width:100%;">
+        <tr>
+          <th ${thStyle("14%")}>AGENT</th>
+          <th ${thStyle("8%")}>NEW LEADS</th>
+          <th ${thStyle("9%")}>REFERRALS</th>
+          <th ${thStyle("10%")}>APPT BOOKED</th>
+          <th ${thStyle("8%")}>CLOSED</th>
+          <th ${thStyle("8%")}>BOOKED</th>
+          <th ${thStyle("9%")}>MARGIN</th>
+          <th ${thStyle("8%")}>INTERESTED</th>
+          <th ${thStyle("8%")}>CONTACTED</th>
+          <th ${thStyle("9%")}>NOTES</th>
+          <th ${thStyle("9%")}>CONV. RATE</th>
+        </tr>
+        ${sortedByMargin.map((a, i) => { 
+          const seg = a.segmentations || {}; 
+          const mv = typeof a.margin_added_today === "number" ? "$" + a.margin_added_today.toFixed(2) : "$0.00"; 
+          const bg = i % 2 === 0 ? "#ffffff" : "#f8fafc"; 
+          return `<tr style="background:${bg}"><td ${tdNameStyle}>${a.name}</td><td ${tdStyle}>${seg.newLeads || 0}</td><td ${tdStyle}>${seg.referrals || 0}</td><td ${tdStyle}>${seg.apptBookedLeads || 0}</td><td ${tdStyle}>${seg.closedLeads || 0}</td><td ${tdStyle}>${seg.bookedLeads || 0}</td><td ${tdBoldStyle}>${mv}</td><td ${tdStyle}>${a.stage_interested_today || 0}</td><td ${tdStyle}>${a.stage_contacted_today || 0}</td><td ${tdStyle}>${a.notes_updated_today || 0}</td><td ${tdBoldStyle}>${a.general_conv_rate?.toFixed(1) || "0.0"}%</td></tr>`; 
+        }).join("")}
+      </table>
+
+      <h2>2. Today's (${formattedGlossaryDate}) New Leads Conversion</h2>
+      <table style="width:100%;">
+        <tr>
+          <th ${thStyle("30%")}>AGENT</th>
+          <th ${thStyle("17%")}>NEW LEADS TODAY</th>
+          <th ${thStyle("18%")}>REFERRALS TODAY</th>
+          <th ${thStyle("17%")}>CONVERTED TODAY</th>
+          <th ${thStyle("18%")}>CONV. RATE</th>
+        </tr>
+        ${sortedByConverted.map((a, i) => { 
+          const bg = i % 2 === 0 ? "#ffffff" : "#f8fafc"; 
+          return `<tr style="background:${bg}"><td ${tdNameStyle}>${a.name}</td><td ${tdStyle}>${a.new_leads_today || 0}</td><td ${tdStyle}>${a.referrals_today || 0}</td><td ${tdStyle}>${a.converted_today || 0}</td><td ${tdBoldStyle}>${a.today_conv_rate?.toFixed(1) || "0.0"}%</td></tr>`; 
+        }).join("")}
+      </table>
+
+      <h2>3. Detailed Call Metrics (${formattedGlossaryDate} BST)</h2>
+      <table style="width:100%;">
+        <tr>
+          <th ${thStyle("14%")}>AGENT</th>
+          <th ${thStyle("8%")}>OUT COUNT</th>
+          <th ${thStyle("9%")}>OUT ANS</th>
+          <th ${thStyle("9%")}>OUT MISS</th>
+          <th ${thStyle("10%")}>OUT MINS</th>
+          <th ${thStyle("8%")}>OUT AVG</th>
+          <th ${thStyle("8%")}>IN COUNT</th>
+          <th ${thStyle("8%")}>IN ANS</th>
+          <th ${thStyle("8%")}>IN MISS</th>
+          <th ${thStyle("9%")}>IN MINS</th>
+          <th ${thStyle("9%")}>IN AVG</th>
+        </tr>
+        ${sortedByCalls.map((a, i) => { 
+          const c = a.call_metrics || {}; 
+          const bg = i % 2 === 0 ? "#ffffff" : "#f8fafc"; 
+          return `<tr style="background:${bg}"><td ${tdNameStyle}>${a.name}</td><td ${tdStyle}>${c.outboundCount || 0}</td><td ${tdStyle}>${c.outboundAttended || 0}</td><td ${tdStyle}>${c.outboundMissed || 0}</td><td ${tdStyle}>${c.outboundMinutes?.toFixed(1) || "0.0"}</td><td ${tdStyle}>${c.outboundAvgDuration?.toFixed(1) || "0.0"}</td><td ${tdStyle}>${c.inboundCount || 0}</td><td ${tdStyle}>${c.inboundAttended || 0}</td><td ${tdStyle}>${c.inboundMissed || 0}</td><td ${tdStyle}>${c.inboundMinutes?.toFixed(1) || "0.0"}</td><td ${tdStyle}>${c.inboundAvgDuration?.toFixed(1) || "0.0"}</td></tr>`; 
+        }).join("")}
+      </table>
+
+      <h2>4. Agent Activity Graph (${startHour.toString().padStart(2, "0")}:00 - ${endHour.toString().padStart(2, "0")}:00 BST)</h2>
+      ${canvasImageSrc ? `<div style="border:1.5px solid #cbd5e1; padding: 12px; background: #ffffff; text-align: center; border-radius: 4px;"><img src="${canvasImageSrc}" style="width: 100%; max-width: 100%; height: auto;" /></div>` : `<p style="color: #64748b; font-style: italic;">[Activity graph rendered in PDF only]</p>`}
+      </body></html>
+    `;
+
+    const blob = new Blob([docHtml], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Agent_Performance_Report_${reportDate}.doc`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const downloadCSV = (headers, rows, filename) => {
@@ -765,12 +1203,13 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
   };
 
   const handleExportTable1 = () => {
-    const headers = ["Agent", "New Leads", "Appt Booked", "Closed Leads", "Booked Leads", "Margin ($)", "Interested Stage", "Contacted Stage", "Notes Count", "General Conversion (%)"];
+    const headers = ["Agent", "New Leads", "Referrals", "Appt Booked", "Closed Leads", "Booked Leads", "Margin ($)", "Interested Stage", "Contacted Stage", "Notes Count", "General Conversion (%)"];
     const rows = agents.map(a => {
       const seg = a.segmentations || {};
       return [
         a.name,
         seg.newLeads || 0,
+        seg.referrals || 0,
         seg.apptBookedLeads || 0,
         seg.closedLeads || 0,
         seg.bookedLeads || 0,
@@ -785,10 +1224,11 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
   };
 
   const handleExportTable2 = () => {
-    const headers = ["Agent", "Today's New Leads", "Today's Converted (Booked/Appt Booked)", "Today's Conversion Rate (%)"];
+    const headers = ["Agent", "Today's New Leads", "Today's Referrals", "Today's Converted (Booked/Appt Booked)", "Today's Conversion Rate (%)"];
     const rows = agents.map(a => [
       a.name,
       a.new_leads_today,
+      a.referrals_today || 0,
       a.converted_today,
       a.today_conv_rate.toFixed(1)
     ]);
@@ -833,11 +1273,13 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
           </h2>
           <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>BST (British Summer Time) standard timezone analysis</span>
         </div>
-        <div style={{ display: "flex", gap: "0.6rem" }}>
-          <button className="btn-primary-small" onClick={handlePrint}>
-            <i className="fa-solid fa-print"></i> Print Full PDF
-          </button>
-        </div>
+        {activeSection !== "exec-export" && (
+          <div style={{ display: "flex", gap: "0.6rem" }}>
+            <button className="btn-primary-small" onClick={handlePrint}>
+              <i className="fa-solid fa-print"></i> Print Full PDF
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 2. Glossary & Descriptions */}
@@ -1301,6 +1743,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
                 <tr>
                   <th>Agent</th>
                   {table1VisibleCols.includes("newLeads") && <th style={{ backgroundColor: "rgba(56, 189, 248, 0.08)", color: "#38bdf8" }}>New Leads</th>}
+                  {table1VisibleCols.includes("referrals") && <th style={{ backgroundColor: "rgba(129, 140, 248, 0.08)", color: "#818cf8" }}>Referrals</th>}
                   {table1VisibleCols.includes("apptBooked") && <th style={{ backgroundColor: "rgba(201, 179, 54, 0.08)", color: "var(--warning)" }}>Appt Booked</th>}
                   {table1VisibleCols.includes("closedLeads") && <th style={{ backgroundColor: "rgba(239, 68, 68, 0.08)", color: "var(--danger)" }}>Closed Leads</th>}
                   {table1VisibleCols.includes("bookedLeads") && <th style={{ backgroundColor: "rgba(113, 167, 88, 0.08)", color: "var(--success)" }}>Booked Leads</th>}
@@ -1320,6 +1763,9 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
                       
                       {table1VisibleCols.includes("newLeads") && (
                         <td style={{ backgroundColor: "rgba(56, 189, 248, 0.02)", fontWeight: 600 }}>{seg.newLeads || 0}</td>
+                      )}
+                      {table1VisibleCols.includes("referrals") && (
+                        <td style={{ backgroundColor: "rgba(129, 140, 248, 0.02)", color: "#818cf8", fontWeight: 600 }}>{seg.referrals || 0}</td>
                       )}
                       {table1VisibleCols.includes("apptBooked") && (
                         <td style={{ backgroundColor: "rgba(201, 179, 54, 0.02)", color: "var(--warning)", fontWeight: 700 }}>{seg.apptBookedLeads || 0}</td>
@@ -1449,6 +1895,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
                 <tr>
                   <th>Agent</th>
                   {table2VisibleCols.includes("newLeadsToday") && <th style={{ backgroundColor: "rgba(56, 189, 248, 0.08)", color: "#38bdf8" }}>Today's New Leads</th>}
+                  {table2VisibleCols.includes("referralsToday") && <th style={{ backgroundColor: "rgba(129, 140, 248, 0.08)", color: "#818cf8" }}>Today's Referrals</th>}
                   {table2VisibleCols.includes("convertedToday") && <th style={{ backgroundColor: "rgba(113, 167, 88, 0.08)", color: "var(--success)" }}>Today's Converted (Booked/Appt Booked)</th>}
                   {table2VisibleCols.includes("todayConvRate") && <th style={{ backgroundColor: "rgba(201, 179, 54, 0.08)", color: "var(--warning)" }}>Today's Conversion Rate (%)</th>}
                 </tr>
@@ -1459,6 +1906,9 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
                     <td style={{ fontWeight: 700 }}>{a.name}</td>
                     {table2VisibleCols.includes("newLeadsToday") && (
                       <td style={{ backgroundColor: "rgba(56, 189, 248, 0.02)" }}>{a.new_leads_today}</td>
+                    )}
+                    {table2VisibleCols.includes("referralsToday") && (
+                      <td style={{ backgroundColor: "rgba(129, 140, 248, 0.02)", color: "#818cf8", fontWeight: 600 }}>{a.referrals_today || 0}</td>
                     )}
                     {table2VisibleCols.includes("convertedToday") && (
                       <td style={{ backgroundColor: "rgba(113, 167, 88, 0.02)", color: "var(--success)", fontWeight: 700 }}>{a.converted_today}</td>
@@ -1690,14 +2140,19 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
               <div style={{ border: "1px solid var(--card-border)", borderRadius: "12px", padding: "1.5rem", background: "rgba(255,255,255,0.01)", display: "flex", flexDirection: "column", gap: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
                   <i className="fa-solid fa-file-pdf" style={{ fontSize: "1.5rem", color: "var(--danger)" }}></i>
-                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>Print Operations Summary (PDF)</h3>
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>Print Operations Summary</h3>
                 </div>
-                <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", minHeight: "60px" }}>
-                  Format the current workspace metrics including GHL transitions, activity Gantts, and sprint reports as an landscape operations PDF doc.
+                <p style={{ fontSize: "0.82rem", color: "var(--text-secondary)", minHeight: "40px" }}>
+                  Generate a complete operations report including all metrics tables and the activity scatter timeline graph.
                 </p>
-                <button className="btn-primary-small" onClick={handlePrint} style={{ alignSelf: "flex-start", padding: "0.6rem 1.25rem" }}>
-                  <i className="fa-solid fa-print"></i> Generate PDF Document
-                </button>
+                <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                  <button className="btn-primary-small" onClick={handlePrint} style={{ padding: "0.6rem 1.25rem" }}>
+                    <i className="fa-solid fa-file-pdf"></i> Export as PDF
+                  </button>
+                  <button className="btn-primary-small" onClick={handleDocx} style={{ padding: "0.6rem 1.25rem", background: "rgba(59, 130, 246, 0.12)", color: "#3b82f6", border: "1px solid rgba(59, 130, 246, 0.25)" }}>
+                    <i className="fa-solid fa-file-word"></i> Export as Document
+                  </button>
+                </div>
               </div>
 
               {/* Excel Column */}

@@ -2123,3 +2123,10 @@ select option {
         page-break-inside: avoid;
     }
 }
+
+/* Custom dashboard styles to center-align all table content and headers */
+.print-table th, 
+.print-table td {
+    text-align: center !important;
+}
+

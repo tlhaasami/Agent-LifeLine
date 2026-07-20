@@ -25,9 +25,37 @@ export function normalizeAgentName(name) {
 }
 
 // Helper to convert date to BST standard timezone-robust checking (interprets string directly as UTC components)
-export function toBST(dateStr, targetDateStr = "2026-07-17") {
+export function toBST(dateStr, targetDateStr = "2026-07-17", timezone = "BST") {
   if (!dateStr) return null;
   const cleanStr = dateStr.trim();
+
+  // If the date string is an ISO string containing Z or T (e.g., from GHL API)
+  if (cleanStr.includes("T") || cleanStr.endsWith("Z")) {
+    const d = new Date(cleanStr);
+    if (!isNaN(d.getTime())) {
+      // Convert UTC timestamp into target timezone's local date components
+      const tzName = timezone === "PKT" ? "Asia/Karachi" : "Europe/London";
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: tzName,
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: false
+      });
+      const parts = formatter.formatToParts(d);
+      const year = parseInt(parts.find(p => p.type === "year").value, 10);
+      const month = parseInt(parts.find(p => p.type === "month").value, 10) - 1;
+      const day = parseInt(parts.find(p => p.type === "day").value, 10);
+      const hour = parseInt(parts.find(p => p.type === "hour").value, 10);
+      const minute = parseInt(parts.find(p => p.type === "minute").value, 10);
+      const second = parseInt(parts.find(p => p.type === "second").value, 10);
+      
+      return new Date(Date.UTC(year, month, day, hour, minute, second));
+    }
+  }
 
   // Parse target date components
   const [targetYear, targetMonth, targetDay] = targetDateStr.split("-").map(Number);
@@ -156,7 +184,8 @@ export function processAgentData(
   closedLeadsRows = [],
   targetDateStr = "2026-07-17",
   maxBreakGapMinutes = 30,
-  nominalActionMinutes = 5
+  nominalActionMinutes = 5,
+  timezone = "BST"
 ) {
   const oppCounts = {};
   const contactToAgent = {};
@@ -212,6 +241,8 @@ export function processAgentData(
         newLeadsToday: 0,
         bookedLeadsToday: 0,
         apptBookedLeadsToday: 0,
+        referrals: 0,
+        referralsToday: 0,
       };
     }
   };
@@ -220,11 +251,24 @@ export function processAgentData(
     const agent = normalizeAgentName(row["Assigned user"] || row.assigned || findAgent(row["Phone number"], row["Opportunity name"]));
     if (!agent) return;
     initAgentSegment(agent);
-    agentSegmentations[agent].newLeads++;
 
-    const bstCreated = toBST(row["Created on"], targetDateStr);
-    if (isJuly17BST(bstCreated, targetDateStr)) {
-      agentSegmentations[agent].newLeadsToday++;
+    const isReferral = [row["Referal"], row["Referral"], row["referal"], row["referral"]].some(val => 
+      val && ["referal", "referral", "yes", "true"].includes(String(val).trim().toLowerCase())
+    );
+
+    const bstCreated = toBST(row["Created on"], targetDateStr, timezone);
+    const createdToday = isJuly17BST(bstCreated, targetDateStr);
+
+    if (isReferral) {
+      agentSegmentations[agent].referrals++;
+      if (createdToday) {
+        agentSegmentations[agent].referralsToday++;
+      }
+    } else {
+      agentSegmentations[agent].newLeads++;
+      if (createdToday) {
+        agentSegmentations[agent].newLeadsToday++;
+      }
     }
   });
 
@@ -234,7 +278,7 @@ export function processAgentData(
     initAgentSegment(agent);
     agentSegmentations[agent].bookedLeads++;
 
-    const bstCreated = toBST(row["Created on"], targetDateStr);
+    const bstCreated = toBST(row["Created on"], targetDateStr, timezone);
     if (isJuly17BST(bstCreated, targetDateStr)) {
       agentSegmentations[agent].bookedLeadsToday++;
     }
@@ -246,7 +290,7 @@ export function processAgentData(
     initAgentSegment(agent);
     agentSegmentations[agent].apptBookedLeads++;
 
-    const bstCreated = toBST(row["Created on"], targetDateStr);
+    const bstCreated = toBST(row["Created on"], targetDateStr, timezone);
     if (isJuly17BST(bstCreated, targetDateStr)) {
       agentSegmentations[agent].apptBookedLeadsToday++;
     }
@@ -271,7 +315,7 @@ export function processAgentData(
     const status = row["Call status"] || row["Call Status"] || row["call_status"];
     const direction = row.Direction || row.direction || "unknown";
 
-    const bstTime = toBST(timestamp, targetDateStr);
+    const bstTime = toBST(timestamp, targetDateStr, timezone);
     if (!bstTime) return;
 
     const agent = normalizeAgentName(findAgent(cPhone, cName));
@@ -315,7 +359,7 @@ export function processAgentData(
 
     if (!rawAgent || !dtVal) return;
 
-    const bstTime = toBST(dtVal, targetDateStr);
+    const bstTime = toBST(dtVal, targetDateStr, timezone);
     if (!bstTime) return;
 
     const agentClean = normalizeAgentName(rawAgent);
@@ -361,7 +405,7 @@ export function processAgentData(
     if (!assigned) return;
 
     const marginAddedDate = row["Margin Added Date"] || row["margin_added_date"];
-    const bstMarginDate = toBST(marginAddedDate, targetDateStr);
+    const bstMarginDate = toBST(marginAddedDate, targetDateStr, timezone);
 
     if (isJuly17BST(bstMarginDate, targetDateStr)) {
       const marginVal = parseFloat(row["Margin Amount"] || row["Margin value"] || row["Lead Value"] || 0);
@@ -572,6 +616,7 @@ export function processAgentData(
 
       // Today's Conversion stats (Table 2)
       new_leads_today: seg.newLeadsToday,
+      referrals_today: seg.referralsToday || 0,
       converted_today: convertedToday,
       today_conv_rate: todayConvRate,
 
