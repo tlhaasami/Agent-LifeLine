@@ -421,7 +421,7 @@ export function processAgentData(
   auditLogsRows.forEach((row) => {
     const rawAgent = row["Modified By (Name)"] || row["modified_by"];
     const dtVal = row["Date & Time"] || row["date_time"];
-    const module = row.Module || row.module;
+    const moduleName = row.Module || row.module;
     const action = row.Action || row.action;
     const details = row.Details || "";
 
@@ -439,7 +439,7 @@ export function processAgentData(
 
     const activity = {
       dt: bstTime,
-      module: module || "UNKNOWN",
+      module: moduleName || "UNKNOWN",
       action: action || "UNKNOWN",
       details,
     };
@@ -456,7 +456,7 @@ export function processAgentData(
       });
 
       // Parse pipeline stage changes on July 17 BST
-      if (module === "OPPORTUNITY" && details) {
+      if (moduleName === "OPPORTUNITY" && details) {
         const match = details.match(/"pipelineStageName"\s*:\s*"([^"]+)"/);
         if (match) {
           const stageName = match[1];
@@ -488,9 +488,7 @@ export function processAgentData(
         const leadValRaw = row["Lead value"] || row["Lead Value"] || "0";
 
         const marginVal = parseFloat(marginValRaw);
-        const leadVal = parseFloat(leadValRaw);
-
-        if (marginVal === leadVal) {
+        if (!isNaN(marginVal) && marginVal > 0) {
           agentMargins[assigned] = (agentMargins[assigned] || 0) + marginVal;
         }
       }
@@ -547,8 +545,7 @@ export function processAgentData(
         const marginValRaw = row["Margin Amount"] || row["Margin amount"] || "0";
         const leadValRaw = row["Lead value"] || row["Lead Value"] || "0";
         const marginVal = parseFloat(marginValRaw);
-        const leadVal = parseFloat(leadValRaw);
-        if (marginVal === leadVal) {
+        if (!isNaN(marginVal) && marginVal > 0) {
           if (!agentMarginDetails[assigned]) agentMarginDetails[assigned] = [];
           agentMarginDetails[assigned].push({
             name: row["Opportunity name"] || row["Primary Contact name"] || "Unknown",

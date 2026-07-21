@@ -111,7 +111,7 @@ export default function Overview({ agents, stageChanges = {}, reportDate = "2026
             <i className="fa-solid fa-fire-flame-curved"></i>
           </div>
           <div className="kpi-info">
-            <span className="kpi-title">Today's Conversion Rate</span>
+            <span className="kpi-title">Today&apos;s Conversion Rate</span>
             <h3 className="kpi-value">{teamTodayConvRate.toFixed(1)}%</h3>
             <p className="kpi-subtext">Immediate conversion sprints</p>
           </div>

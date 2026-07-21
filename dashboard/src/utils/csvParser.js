@@ -22,9 +22,13 @@ export function parseCSV(text) {
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     const next = text[i + 1];
+    const prev = text[i - 1];
 
     if (c === '"') {
-      if (inQuotes && next === '"') {
+      if (prev === '\\') {
+        // Backslash escaped quote
+        row[row.length - 1] += '"';
+      } else if (inQuotes && next === '"') {
         // Escaped quote
         row[row.length - 1] += '"';
         i++; // skip next quote

@@ -17,8 +17,11 @@ export default function JudgmentWorkspace({ agents, currentAgentName, onSelectAg
   useEffect(() => {
     if (activeAgent) {
       const savedNotes = localStorage.getItem(`audit_notes_${activeAgent.name}`);
-      setNotes(savedNotes || "");
-      setNotesStatus("");
+      const timer = setTimeout(() => {
+        setNotes(savedNotes || "");
+        setNotesStatus("");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [activeAgent]);
 
@@ -363,7 +366,7 @@ export default function JudgmentWorkspace({ agents, currentAgentName, onSelectAg
             </div>
             <div className="judgment-notes-area">
               <p className="notes-tip">
-                Review the unified timeline above to evaluate this agent's work continuity, break patterns, GHL audit
+                Review the unified timeline above to evaluate this agent&apos;s work continuity, break patterns, GHL audit
                 trail, and phone call engagement.
               </p>
               <textarea

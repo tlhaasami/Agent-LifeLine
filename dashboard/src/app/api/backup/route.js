@@ -10,6 +10,29 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing data or date" }, { status: 400 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const skipGithub = searchParams.get("skipGithub") === "true";
+
+    if (skipGithub) {
+      try {
+        const localDir = path.join(process.cwd(), "Test-Data");
+        if (fs.existsSync(localDir)) {
+          const localFile = path.join(localDir, `lifeline_report_${date}.json`);
+          const jsonString = JSON.stringify(data, null, 2);
+          fs.writeFileSync(localFile, jsonString, "utf-8");
+          console.log(`Successfully updated local backup file at: ${localFile}`);
+          return NextResponse.json({
+            success: true,
+            message: `Successfully saved report locally at ${localFile}`
+          });
+        } else {
+          return NextResponse.json({ error: "Local Test-Data folder does not exist" }, { status: 500 });
+        }
+      } catch (err) {
+        return NextResponse.json({ error: `Failed to save locally: ${err.message}` }, { status: 500 });
+      }
+    }
+
     const token = process.env.GITHUB_TOKEN;
     const owner = process.env.GITHUB_OWNER;
     const repo = process.env.GITHUB_REPO;

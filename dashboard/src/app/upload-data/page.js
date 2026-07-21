@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import CustomDatePicker from "@/components/CustomDatePicker";
 import { parseCSV } from "@/utils/csvParser";
-import { processAgentData } from "@/utils/analysisEngine";
+import { processAgentData, toBST, isJuly17BST } from "@/utils/analysisEngine";
 
 export default function UploadDataPage() {
   const [theme, setTheme] = useState("dark");
@@ -33,6 +33,23 @@ export default function UploadDataPage() {
   const [uploadMode, setUploadMode] = useState("bulk"); // 'bulk' or 'single'
   const [processStatus, setProcessStatus] = useState("");
   const [processingState, setProcessingState] = useState(null);
+
+  // Step-by-Step Onboarding States
+  const [currentStepIdx, setCurrentStepIdx] = useState(-1);
+  const [stepDetails, setStepDetails] = useState("");
+  const [stepStatus, setStepStatus] = useState(""); // 'processing', 'waiting-for-user', 'confirm-upload', 'error'
+  const [tempParsedData, setTempParsedData] = useState({
+    auditRows: [],
+    oppsRows: [],
+    callsRows: [],
+    newLeadsRows: [],
+    bookedRows: [],
+    apptRows: [],
+    closedRows: [],
+    contactsRows: [],
+    originalOppsRows: []
+  });
+  const [compiledData, setCompiledData] = useState(null);
 
   // Custom Alert & Confirm Popup States
   const [customPopup, setCustomPopup] = useState(null);
@@ -175,6 +192,72 @@ export default function UploadDataPage() {
     if (identifiedContacts) setContactsFile(identifiedContacts);
   };
 
+  // Mock outbound messages helper
+  const getMockOutboundMessages = (dateStr) => {
+    const mockConvs = [
+      {
+        agentName: "Agent 11",
+        fullName: "Contact 1",
+        messages: [
+          { id: "m1_2", body: "Hello Contact 1! The government visa fee is £180. We also charge a documentation service fee. Let me know if you would like to book a call to check your eligibility?", direction: "outbound", timestamp: "15:32" },
+          { id: "m1_4", body: "I have a slot at 3:45 PM BST. Does that work?", direction: "outbound", timestamp: "15:34" }
+        ]
+      },
+      {
+        agentName: "Agent 11",
+        fullName: "Contact 2",
+        messages: [
+          { id: "m2_2", body: "Yes Contact 2, we do! Which university are you looking at?", direction: "outbound", timestamp: "16:10" },
+          { id: "m2_4", body: "Excellent choice. We have a dedicated team for UK student visas.", direction: "outbound", timestamp: "16:15" }
+        ]
+      },
+      {
+        agentName: "Agent 1",
+        fullName: "Contact 3",
+        messages: [
+          { id: "m3_2", body: "Hi Contact 3! Yes, I received them. They are currently being verified by our compliance team.", direction: "outbound", timestamp: "12:17" },
+          { id: "m3_4", body: "I will keep you updated. Have a great day!", direction: "outbound", timestamp: "12:20" }
+        ]
+      },
+      {
+        agentName: "Agent 1",
+        fullName: "Contact 4",
+        messages: [
+          { id: "m4_2", body: "Hi Contact 4! It's booked for July 25th at 10 AM.", direction: "outbound", timestamp: "10:42" }
+        ]
+      },
+      {
+        agentName: "Agent 8",
+        fullName: "Contact 5",
+        messages: [
+          { id: "m5_2", body: "Hi Contact 5, no problem. I have rescheduled it to next Monday at 2 PM. You should receive a confirmation email shortly.", direction: "outbound", timestamp: "14:15" }
+        ]
+      },
+      {
+        agentName: "Agent 8",
+        fullName: "Contact 6",
+        messages: [
+          { id: "m6_2", body: "Hello Contact 6, our documentation fee is non-refundable as it covers our manual verification and filing services. However, we ensure a 99% success rate before we submit.", direction: "outbound", timestamp: "09:12" }
+        ]
+      }
+    ];
+
+    const list = [];
+    mockConvs.forEach(c => {
+      c.messages.forEach(m => {
+        list.push({
+          id: m.id,
+          agent: c.agentName,
+          time: new Date(`${dateStr}T${m.timestamp}:00`),
+          body: m.body,
+          contactName: c.fullName,
+          type: "message"
+        });
+      });
+    });
+    return list;
+  };
+
   // Live GHL API fetch helper
   const fetchGhlOutboundMessages = async (targetDate, token, locationId, contactsRows = [], tz = "BST") => {
     try {
@@ -198,12 +281,32 @@ export default function UploadDataPage() {
 
       const outboundMsgs = [];
 
-      // Filter contacts from contactsRows that were created on targetDate (YYYY-MM-DD)
+      const isSameDate = (activityStr, targetDateStr) => {
+        if (!activityStr) return false;
+        try {
+          const d = new Date(activityStr);
+          if (!isNaN(d.getTime())) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}` === targetDateStr;
+          }
+        } catch (e) {}
+
+        const parts = targetDateStr.split('-');
+        const year = parts[0];
+        const monthInt = parseInt(parts[1], 10);
+        const dayInt = parseInt(parts[2], 10);
+        const monthsAbbr = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+        const abbr = monthsAbbr[monthInt - 1];
+        const normalized = activityStr.toLowerCase();
+        return normalized.includes(year) && normalized.includes(abbr) && normalized.includes(String(dayInt));
+      };
+
+      // Filter contacts from contactsRows that have Last Activity on targetDate
       const targetContacts = contactsRows.filter(row => {
-        const createdVal = row["Created"] || row["created"] || "";
-        if (!createdVal) return false;
-        const datePart = createdVal.split("T")[0];
-        return datePart === targetDate;
+        const activityVal = row["Last Activity"] || row["last_activity"] || "";
+        return isSameDate(activityVal, targetDate);
       });
 
       console.log(`Syncing GHL chat records for ${targetContacts.length} contacts created on ${targetDate}...`);
@@ -257,27 +360,19 @@ export default function UploadDataPage() {
           return datePart === targetDate;
         });
 
-        // Filter and map outbound messages
-        const list = dayMessages
-          .filter(m => m.direction === "outbound" && (m.type === "message" || m.messageType === "TYPE_SMS" || m.messageType === "TYPE_EMAIL"))
-          .map(m => {
-            const timeObj = new Date(m.dateAdded);
-            const time = timeObj.toLocaleTimeString("en-GB", { hour12: false, hour: "2-digit", minute: "2-digit" });
-            return {
+        // Filter and map outbound messages into flat structure
+        dayMessages
+          .filter(m => m.direction === "outbound" && (m.type === "message" || m.messageType === "TYPE_SMS" || m.messageType === "TYPE_EMAIL" || m.type === "TYPE_SMS" || m.type === "TYPE_EMAIL"))
+          .forEach(m => {
+            outboundMsgs.push({
               id: m.id,
-              body: m.body || "",
-              direction: "outbound",
-              timestamp: time
-            };
+              agent: userMap[conv.assignedTo] || userMap[conv.userId] || "GHL Agent",
+              time: m.dateAdded,
+              body: m.body || "[Media or Attachment]",
+              contactName: conv.contactName || conv.fullName || (contact["First Name"] + " " + contact["Last Name"]) || "Contact",
+              type: "message"
+            });
           });
-
-        if (list.length > 0) {
-          outboundMsgs.push({
-            agentName: userMap[conv.assignedTo] || userMap[conv.userId] || "GHL Agent",
-            fullName: conv.contactName || conv.fullName || (contact["First Name"] + " " + contact["Last Name"]) || "Contact",
-            messages: list
-          });
-        }
       }
 
       return outboundMsgs;
@@ -287,145 +382,365 @@ export default function UploadDataPage() {
     }
   };
 
+  const runOnboardingStep = async (stepIdx, currentTempData) => {
+    try {
+      if (stepIdx === 0) {
+        // Step 1: Parse Opportunities Database
+        let oppsRows = [];
+        if (oppsFile) {
+          const text = await readFileText(oppsFile);
+          oppsRows = parseCSV(text);
+        }
+        const nextData = { ...currentTempData, oppsRows, originalOppsRows: oppsRows };
+        setTempParsedData(nextData);
+        setStepDetails(`Opportunities database loaded.\nTotal Opportunities parsed: ${oppsRows.length}`);
+        setStepStatus("waiting-for-user");
+
+        setProcessingState(prev => {
+          if (!prev) return null;
+          const updatedSteps = [...prev.steps];
+          updatedSteps[0].status = "done";
+          if (updatedSteps[1]) updatedSteps[1].status = "processing";
+          return {
+            ...prev,
+            steps: updatedSteps,
+            progressPercent: 15
+          };
+        });
+      }
+      else if (stepIdx === 1) {
+        // Step 2: Read GHL Agent Logs & Filter Interacted Opportunities
+        const auditRows = [];
+        for (const file of auditFiles) {
+          const text = await readFileText(file);
+          const rows = parseCSV(text);
+          auditRows.push(...rows);
+        }
+
+        const auditOppIds = new Set();
+        auditRows.forEach(row => {
+          const docId = row['Document ID'] || row['document_id'];
+          const moduleName = row['Module'] || row['module'];
+          const details = row['Details'] || row['details'] || '';
+
+          if (moduleName === 'OPPORTUNITY' && docId) {
+            auditOppIds.add(docId);
+          }
+
+          if (details) {
+            try {
+              const detailsObj = JSON.parse(details);
+              if (detailsObj.relations && Array.isArray(detailsObj.relations)) {
+                detailsObj.relations.forEach(rel => {
+                  if (rel.objectKey === 'opportunity' && rel.recordId) {
+                    auditOppIds.add(rel.recordId);
+                  }
+                });
+              }
+            } catch (e) {
+              const match = details.match(/"objectKey"\s*:\s*"opportunity"\s*,\s*"recordId"\s*:\s*"([^"]+)"/);
+              if (match) auditOppIds.add(match[1]);
+              const match2 = details.match(/"recordId"\s*:\s*"([^"]+)"\s*,\s*"objectKey"\s*:\s*"opportunity"/);
+              if (match2) auditOppIds.add(match2[1]);
+            }
+          }
+        });
+
+        const filteredOpps = currentTempData.oppsRows.filter(row => {
+          const oppId = row['Opportunity ID'] || row['opportunityId'] || row['id'];
+          return oppId && auditOppIds.has(oppId);
+        });
+
+        const nextData = { ...currentTempData, auditRows, oppsRows: filteredOpps };
+        setTempParsedData(nextData);
+        setStepDetails(`Parsed ${auditFiles.length} GHL Agent Log files.\nTotal log rows: ${auditRows.length}\nUnique opportunities with audit activity: ${auditOppIds.size}\nInteracted opportunities kept: ${filteredOpps.length} (dropped ${currentTempData.oppsRows.length - filteredOpps.length} inactive ones)`);
+        setStepStatus("waiting-for-user");
+
+        setProcessingState(prev => {
+          if (!prev) return null;
+          const updatedSteps = [...prev.steps];
+          updatedSteps[1].status = "done";
+          if (updatedSteps[2]) updatedSteps[2].status = "processing";
+          return {
+            ...prev,
+            steps: updatedSteps,
+            progressPercent: 30
+          };
+        });
+      }
+      else if (stepIdx === 2) {
+        // Step 3: Load Call Report Logs
+        let callsRows = [];
+        if (callsFile) {
+          const text = await readFileText(callsFile);
+          callsRows = parseCSV(text);
+        }
+        let outboundCount = 0;
+        let missedInboundCount = 0;
+        callsRows.forEach(row => {
+          const direction = (row.Direction || row.direction || '').toLowerCase();
+          const status = (row['Call status'] || row['Call Status'] || row.status || '').toLowerCase();
+          if (direction === 'outbound') {
+            outboundCount++;
+          } else if (direction === 'inbound' && status !== 'answered') {
+            missedInboundCount++;
+          }
+        });
+        const nextData = { ...currentTempData, callsRows };
+        setTempParsedData(nextData);
+        setStepDetails(`Call report log parsed successfully.\nTotal call logs: ${callsRows.length}\nOutbound calls: ${outboundCount}\nMissed inbound calls (Inbound not Answered): ${missedInboundCount}`);
+        setStepStatus("waiting-for-user");
+
+        setProcessingState(prev => {
+          if (!prev) return null;
+          const updatedSteps = [...prev.steps];
+          updatedSteps[2].status = "done";
+          if (updatedSteps[3]) updatedSteps[3].status = "processing";
+          return {
+            ...prev,
+            steps: updatedSteps,
+            progressPercent: 45
+          };
+        });
+      }
+      else if (stepIdx === 3) {
+        // Step 4: Parse New Leads & Separate Referrals
+        let newLeadsRows = [];
+        if (newLeadsFile) {
+          const text = await readFileText(newLeadsFile);
+          newLeadsRows = parseCSV(text);
+        }
+        let referrals = 0;
+        let others = 0;
+        newLeadsRows.forEach(row => {
+          const isReferral = [row["Referal"], row["Referral"], row["referal"], row["referral"], row["Source"], row["source"]].some(val =>
+            val && ["referal", "referral", "yes", "true"].includes(String(val).trim().toLowerCase())
+          );
+          if (isReferral) referrals++;
+          else others++;
+        });
+        const nextData = { ...currentTempData, newLeadsRows };
+        setTempParsedData(nextData);
+        setStepDetails(`New leads segmentation file parsed.\nTotal new leads today: ${newLeadsRows.length}\nReferrals: ${referrals}\nStandard leads (Others): ${others}`);
+        setStepStatus("waiting-for-user");
+
+        setProcessingState(prev => {
+          if (!prev) return null;
+          const updatedSteps = [...prev.steps];
+          updatedSteps[3].status = "done";
+          if (updatedSteps[4]) updatedSteps[4].status = "processing";
+          return {
+            ...prev,
+            steps: updatedSteps,
+            progressPercent: 60
+          };
+        });
+      }
+      else if (stepIdx === 4) {
+        // Step 5: Load Bookings, Appts, Closed Leads
+        let bookedRows = [];
+        if (bookedLeadsFile) {
+          const text = await readFileText(bookedLeadsFile);
+          bookedRows = parseCSV(text);
+        }
+        let apptRows = [];
+        if (apptLeadsFile) {
+          const text = await readFileText(apptLeadsFile);
+          apptRows = parseCSV(text);
+        }
+        let closedRows = [];
+        if (closedLeadsFile) {
+          const text = await readFileText(closedLeadsFile);
+          closedRows = parseCSV(text);
+        }
+        const nextData = { ...currentTempData, bookedRows, apptRows, closedRows };
+        setTempParsedData(nextData);
+        setStepDetails(`Bookings & stage transitions loaded:\n- Booked Leads: ${bookedRows.length}\n- Appointment Booked: ${apptRows.length}\n- Closed Leads: ${closedRows.length}`);
+        setStepStatus("waiting-for-user");
+
+        setProcessingState(prev => {
+          if (!prev) return null;
+          const updatedSteps = [...prev.steps];
+          updatedSteps[4].status = "done";
+          if (updatedSteps[5]) updatedSteps[5].status = "processing";
+          return {
+            ...prev,
+            steps: updatedSteps,
+            progressPercent: 75
+          };
+        });
+      }
+      else if (stepIdx === 5) {
+        // Step 6: Calculate Margin Generated Today
+        let totalMargin = 0;
+        const isMarginOnly = oppsFile && oppsFile.name.toLowerCase().includes("margin");
+        currentTempData.originalOppsRows.forEach(row => {
+          if (isMarginOnly) {
+            const leadVal = parseFloat(row["Lead value"] || row["Lead Value"] || 0);
+            totalMargin += leadVal;
+          } else {
+            const marginAddedDate = row["Margin Added Date"] || row["margin_added_date"];
+            if (marginAddedDate) {
+              const bstMarginDate = toBST(marginAddedDate, reportDate, "BST");
+              if (isJuly17BST(bstMarginDate, reportDate)) {
+                const marginValRaw = row["Margin Amount"] || row["Margin amount"] || "0";
+                const marginVal = parseFloat(marginValRaw);
+                if (!isNaN(marginVal) && marginVal > 0) {
+                  totalMargin += marginVal;
+                }
+              }
+            }
+          }
+        });
+
+        setStepDetails(`Opportunities scanned for daily margin added on date ${reportDate}.\nTotal Margin Generated today: £${totalMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        setStepStatus("waiting-for-user");
+
+        setProcessingState(prev => {
+          if (!prev) return null;
+          const updatedSteps = [...prev.steps];
+          updatedSteps[5].status = "done";
+          if (updatedSteps[6]) updatedSteps[6].status = "processing";
+          return {
+            ...prev,
+            steps: updatedSteps,
+            progressPercent: 85
+          };
+        });
+      }
+      else if (stepIdx === 6) {
+        // Step 7: Load Contacts database & GHL message integration
+        let contactsRows = [];
+        if (contactsFile) {
+          const text = await readFileText(contactsFile);
+          contactsRows = parseCSV(text);
+        }
+
+        if (syncConversations && contactsRows.length === 0) {
+          throw new Error("Please upload the Contacts Export CSV file to pull live GHL chat messages.");
+        }
+
+        const nextData = { ...currentTempData, contactsRows };
+        setTempParsedData(nextData);
+
+        let summaryText = `Contacts database parsed successfully.\nTotal contacts parsed: ${contactsRows.length}`;
+
+        // Compile everything
+        const isMarginOnly = oppsFile && oppsFile.name.toLowerCase().includes("margin");
+        const processed = processAgentData(
+          currentTempData.auditRows,
+          currentTempData.originalOppsRows, // Use unfiltered opps so processAgentData can count all opportunities properly!
+          currentTempData.callsRows,
+          currentTempData.newLeadsRows,
+          currentTempData.bookedRows,
+          currentTempData.apptRows,
+          currentTempData.closedRows,
+          reportDate,
+          30,
+          5,
+          timezone,
+          isMarginOnly,
+          contactsRows
+        );
+
+        // Sync Outbound Messages
+        let msgList = [];
+        if (syncConversations && ghlToken && ghlLocationId) {
+          summaryText += `\nFetching conversations for target date ${reportDate} from GHL API...`;
+          try {
+            msgList = await fetchGhlOutboundMessages(reportDate, ghlToken, ghlLocationId, contactsRows, timezone);
+            summaryText += `\nLive Sync Complete: Exchanged messages with ${new Set(msgList.map(m => m.fullName || m.contactName)).size} contacts.`;
+          } catch (err) {
+            summaryText += `\nLive Sync failed, fell back to simulated messages.`;
+            msgList = getMockOutboundMessages(reportDate);
+          }
+        }
+        processed.ghl_outbound_messages = msgList;
+        setCompiledData(processed);
+
+        setStepDetails(`${summaryText}\n\nAll datasets parsed and compiled successfully!`);
+        setStepStatus("confirm-upload");
+
+        setProcessingState(prev => {
+          if (!prev) return null;
+          const updatedSteps = [...prev.steps];
+          updatedSteps[6].status = "done";
+          if (updatedSteps[7]) updatedSteps[7].status = "processing";
+          return {
+            ...prev,
+            steps: updatedSteps,
+            progressPercent: 95
+          };
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setStepStatus("error");
+      setProcessingState(prev => {
+        if (!prev) return null;
+        const updatedSteps = [...prev.steps];
+        if (updatedSteps[stepIdx]) updatedSteps[stepIdx].status = "error";
+        return {
+          ...prev,
+          steps: updatedSteps,
+          error: err.message
+        };
+      });
+    }
+  };
+
   const processUploadedFiles = async () => {
     if (auditFiles.length === 0) return;
 
     const steps = [
-      { id: "read-audit", name: `Parsing ${auditFiles.length} GHL Agent Log file(s)`, status: "processing" },
-      { id: "read-opps", name: "Parsing CRM Opportunities Master", status: "pending" },
+      { id: "read-opps", name: "Parsing CRM Opportunities Database", status: "processing" },
+      { id: "filter-opps", name: "Filtering Interacted Opportunities using GHL Audit Logs", status: "pending" },
       { id: "read-calls", name: "Parsing Call Report Logs", status: "pending" },
-      { id: "read-segments", name: "Parsing Lead Segmentation files", status: "pending" },
-      { id: "compile", name: "Compiling CSV metrics & activity logs", status: "pending" },
-      { id: "ghl-sync", name: "Syncing outbound conversations & calls from GHL API", status: "pending" },
-      { id: "build-dashboard", name: "Generating dashboard charts & unified JSON", status: "pending" },
-      { id: "github-sync", name: "Uploading compiled JSON to private GitHub repo", status: "pending" }
+      { id: "read-new-leads", name: "Segmenting New Leads & Referrals", status: "pending" },
+      { id: "read-bookings", name: "Loading Bookings, Appointment Booked, & Closed Leads", status: "pending" },
+      { id: "calc-margin", name: "Calculating Margin Generated Today", status: "pending" },
+      { id: "read-contacts", name: "Loading Contacts & Fetching Conversations", status: "pending" },
+      { id: "confirm-upload", name: "Confirming and Saving compiled backup", status: "pending" }
     ];
+
+    const initialData = {
+      auditRows: [],
+      oppsRows: [],
+      callsRows: [],
+      newLeadsRows: [],
+      bookedRows: [],
+      apptRows: [],
+      closedRows: [],
+      contactsRows: [],
+      originalOppsRows: []
+    };
+
+    setTempParsedData(initialData);
+    setCurrentStepIdx(0);
+    setStepStatus("processing");
+    setStepDetails("Initializing Opportunities Database parsing...");
 
     setProcessingState({
       steps,
       progressPercent: 5,
     });
 
+    await runOnboardingStep(0, initialData);
+  };
+
+  const handleNextStep = async () => {
+    const nextIdx = currentStepIdx + 1;
+    setCurrentStepIdx(nextIdx);
+    setStepStatus("processing");
+    setStepDetails(`Running Step ${nextIdx + 1}...`);
+    await runOnboardingStep(nextIdx, tempParsedData);
+  };
+
+  const handleConfirmUpload = async () => {
     try {
-      // Step 1: Read Audit Logs
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const auditRows = [];
-      for (const file of auditFiles) {
-        const text = await readFileText(file);
-        const rows = parseCSV(text);
-        auditRows.push(...rows);
-      }
+      setStepStatus("processing");
+      setStepDetails("Uploading backup to GitHub repository...");
 
-      steps[0].status = "done";
-      steps[1].status = "processing";
-      setProcessingState({ steps: [...steps], progressPercent: 15 });
-
-      // Step 2: Read Opportunities Master
-      let oppsRows = [];
-      if (oppsFile) {
-        const text = await readFileText(oppsFile);
-        oppsRows = parseCSV(text);
-      }
-
-      steps[1].status = "done";
-      steps[2].status = "processing";
-      setProcessingState({ steps: [...steps], progressPercent: 30 });
-
-      // Step 3: Read Call report
-      let callsRows = [];
-      if (callsFile) {
-        const text = await readFileText(callsFile);
-        callsRows = parseCSV(text);
-      }
-
-      steps[2].status = "done";
-      steps[3].status = "processing";
-      setProcessingState({ steps: [...steps], progressPercent: 45 });
-
-      // Step 4: Lead segmentations
-      let newLeadsRows = [];
-      if (newLeadsFile) {
-        const text = await readFileText(newLeadsFile);
-        newLeadsRows = parseCSV(text);
-      }
-
-      let bookedRows = [];
-      if (bookedLeadsFile) {
-        const text = await readFileText(bookedLeadsFile);
-        bookedRows = parseCSV(text);
-      }
-
-      let apptRows = [];
-      if (apptLeadsFile) {
-        const text = await readFileText(apptLeadsFile);
-        apptRows = parseCSV(text);
-      }
-
-      let closedRows = [];
-      if (closedLeadsFile) {
-        const text = await readFileText(closedLeadsFile);
-        closedRows = parseCSV(text);
-      }
-
-      let contactsRows = [];
-      if (contactsFile) {
-        const text = await readFileText(contactsFile);
-        contactsRows = parseCSV(text);
-      }
-
-      if (syncConversations && contactsRows.length === 0) {
-        setProcessingState(null);
-        setProcessStatus("");
-        await showCustomAlert("Please upload the Contacts Export CSV file to pull live GHL chat messages.");
-        return;
-      }
-
-      steps[3].status = "done";
-      steps[4].status = "processing";
-      setProcessingState({ steps: [...steps], progressPercent: 60 });
-
-      // Step 5: BST Alignment & compile data
-      const isMarginOnly = oppsFile && oppsFile.name.toLowerCase().includes("margin");
-      const processed = processAgentData(
-        auditRows,
-        oppsRows,
-        callsRows,
-        newLeadsRows,
-        bookedRows,
-        apptRows,
-        closedRows,
-        reportDate,
-        30,
-        5,
-        timezone,
-        isMarginOnly,
-        contactsRows
-      );
-
-      steps[4].status = "done";
-      steps[5].status = "processing";
-      setProcessingState({ steps: [...steps], progressPercent: 75 });
-
-      // Step 6: Fetch GHL Outbound Messages
-      let msgList = [];
-      if (syncConversations && ghlToken && ghlLocationId) {
-        setProcessStatus("Fetching live GHL conversations & outbound messages...");
-        msgList = await fetchGhlOutboundMessages(reportDate, ghlToken, ghlLocationId, contactsRows, timezone);
-      }
-      processed.ghl_outbound_messages = msgList;
-
-      steps[5].status = "done";
-      steps[6].status = "processing";
-      setProcessingState({ steps: [...steps], progressPercent: 85 });
-
-      // Step 7: Build dashboard object
-      steps[6].status = "done";
-      steps[7].status = "processing";
-      setProcessingState({ steps: [...steps], progressPercent: 95 });
-
-      // Step 8: Upload backup to GitHub Private Repo (Always upload on compile)
-      setProcessStatus("Uploading backup to GitHub repository...");
-      
       // Check if file exists to warn/confirm overwrite
       const checkRes = await fetch(`/api/backup?date=${reportDate}`);
       if (checkRes.ok) {
@@ -437,6 +752,7 @@ export default function UploadDataPage() {
           if (!overwrite) {
             setProcessingState(null);
             setProcessStatus("");
+            setCurrentStepIdx(-1);
             return; // Abort
           }
         }
@@ -446,7 +762,7 @@ export default function UploadDataPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          data: processed,
+          data: compiledData,
           date: reportDate
         })
       });
@@ -456,26 +772,75 @@ export default function UploadDataPage() {
         throw new Error(err.error || `GitHub Backup failed (${res.status})`);
       }
 
-      steps[7].status = "done";
-      setProcessingState({
-        steps: [...steps],
-        progressPercent: 100
+      setProcessingState(prev => {
+        if (!prev) return null;
+        const updatedSteps = [...prev.steps];
+        updatedSteps[7].status = "done";
+        return {
+          ...prev,
+          steps: updatedSteps,
+          progressPercent: 100
+        };
       });
 
       await new Promise(resolve => setTimeout(resolve, 800));
       setProcessingState(null);
       setProcessStatus("");
+      setCurrentStepIdx(-1);
       await showCustomAlert(`Successfully processed and saved backup to GitHub for date: ${reportDate}`);
 
       // Redirect to main dashboard page with target date parameter
       window.location.href = `/?date=${reportDate}`;
     } catch (err) {
       console.error(err);
-      const activeStep = steps.find(s => s.status === "processing");
-      if (activeStep) activeStep.status = "error";
-      setProcessingState(prev => prev ? { ...prev, error: err.message } : null);
-      setProcessStatus("");
+      setStepStatus("error");
+      setProcessingState(prev => {
+        if (!prev) return null;
+        const updatedSteps = [...prev.steps];
+        updatedSteps[7].status = "error";
+        return {
+          ...prev,
+          steps: updatedSteps,
+          error: err.message
+        };
+      });
     }
+  };
+
+  const handleSkipUpload = async () => {
+    const saveLocally = await showCustomConfirm(
+      "Would you like to save this report locally on the dashboard server (skipping GitHub upload) before closing?"
+    );
+
+    if (saveLocally) {
+      try {
+        setStepStatus("processing");
+        setStepDetails("Saving report locally on server...");
+
+        const res = await fetch(`/api/backup?skipGithub=true`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: compiledData,
+            date: reportDate
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || `Local Save failed (${res.status})`);
+        }
+
+        await showCustomAlert(`Successfully saved report locally for date: ${reportDate}`);
+      } catch (err) {
+        await showCustomAlert(`Failed to save locally: ${err.message}`);
+      }
+    }
+
+    setProcessingState(null);
+    setProcessStatus("");
+    setCurrentStepIdx(-1);
+    window.location.href = `/?date=${reportDate}`;
   };
 
   return (
@@ -1015,11 +1380,70 @@ export default function UploadDataPage() {
               />
             </div>
 
+            {/* Step Summary Details */}
+            {currentStepIdx !== -1 && (
+              <div style={{
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid var(--card-border)",
+                borderRadius: "8px",
+                padding: "1rem",
+                fontSize: "0.88rem",
+                color: "var(--text-primary)",
+                lineHeight: "1.5",
+                margin: "0.5rem 0"
+              }}>
+                <h4 style={{ margin: "0 0 0.5rem 0", fontWeight: 800, color: "var(--primary)", display: "flex", justifyItems: "center", gap: "0.4rem" }}>
+                  <i className="fa-solid fa-square-poll-horizontal"></i> Step {currentStepIdx + 1} Result:
+                </h4>
+                <div style={{ whiteSpace: "pre-line", fontFamily: "monospace", fontSize: "0.82rem", background: "rgba(0,0,0,0.2)", padding: "0.8rem", borderRadius: "6px", overflowY: "auto", maxHeight: "150px" }}>
+                  {stepDetails}
+                </div>
+                
+                {stepStatus === "waiting-for-user" && (
+                  <div style={{ display: "flex", gap: "0.8rem", marginTop: "1rem" }}>
+                    <button
+                      className="btn-primary-small"
+                      onClick={handleNextStep}
+                      style={{ padding: "0.5rem 1.25rem", fontSize: "0.82rem", cursor: "pointer" }}
+                    >
+                      Move to Next Step <i className="fa-solid fa-chevron-right" style={{ marginLeft: "0.3rem" }}></i>
+                    </button>
+                  </div>
+                )}
+                
+                {stepStatus === "confirm-upload" && (
+                  <div style={{ display: "flex", gap: "0.8rem", marginTop: "1rem" }}>
+                    <button
+                      className="btn-primary-small"
+                      onClick={handleConfirmUpload}
+                      style={{ padding: "0.5rem 1.25rem", fontSize: "0.82rem", cursor: "pointer" }}
+                    >
+                      <i className="fa-solid fa-cloud-arrow-up" style={{ marginRight: "0.3rem" }}></i> Yes, Upload to GitHub
+                    </button>
+                    <button
+                      onClick={handleSkipUpload}
+                      style={{
+                        padding: "0.5rem 1.25rem",
+                        borderRadius: "6px",
+                        border: "1px solid var(--card-border)",
+                        background: "rgba(255,255,255,0.05)",
+                        color: "var(--text-primary)",
+                        cursor: "pointer",
+                        fontSize: "0.82rem"
+                      }}
+                    >
+                      Skip Upload (Save Locally Only)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Error Message */}
             {processingState.error && (
               <div style={{ padding: "0.8rem", background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "var(--danger)", borderRadius: "6px", fontSize: "0.85rem", wordBreak: "break-all" }}>
                 <strong>Error:</strong> {processingState.error}
-                <button className="btn-primary-small" onClick={() => setProcessingState(null)} style={{ marginTop: "0.5rem", display: "block", backgroundColor: "var(--danger)", color: "white" }}>Close</button>
+                <button className="btn-primary-small" onClick={() => { setProcessingState(null); setCurrentStepIdx(-1); }} style={{ marginTop: "0.5rem", display: "block", backgroundColor: "var(--danger)", color: "white" }}>Close</button>
               </div>
             )}
 
@@ -1057,7 +1481,7 @@ export default function UploadDataPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          zIndex: 10000,
+          zIndex: 100000,
           animation: "popupFadeIn 0.2s ease-out"
         }}>
           <div className="card" style={{
