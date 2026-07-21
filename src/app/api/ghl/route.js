@@ -4,22 +4,28 @@ export async function POST(req) {
   try {
     const { endpoint, token, params } = await req.json();
 
-    if (!endpoint || !token) {
+    const authToken = token || process.env.GHL_TOKEN || process.env.NEXT_PUBLIC_GHL_TOKEN;
+    
+    if (!endpoint || !authToken) {
       return NextResponse.json({ error: "Missing GHL API endpoint or authorization token" }, { status: 400 });
+    }
+
+    const finalParams = { ...(params || {}) };
+    const locationId = finalParams.locationId || process.env.GHL_LOCATION_ID || process.env.NEXT_PUBLIC_GHL_LOCATION_ID;
+    if (locationId) {
+      finalParams.locationId = locationId;
     }
 
     // Build the request URL
     const url = new URL(`https://services.leadconnectorhq.com${endpoint}`);
-    if (params) {
-      Object.keys(params).forEach((key) => {
-        if (params[key] !== undefined && params[key] !== null) {
-          url.searchParams.append(key, String(params[key]));
-        }
-      });
-    }
+    Object.keys(finalParams).forEach((key) => {
+      if (finalParams[key] !== undefined && finalParams[key] !== null) {
+        url.searchParams.append(key, String(finalParams[key]));
+      }
+    });
 
     const headers = {
-      "Authorization": `Bearer ${token}`,
+      "Authorization": `Bearer ${authToken}`,
       "Version": "2021-04-15", // Standard GHL API Version header
       "Accept": "application/json",
       "Content-Type": "application/json"
