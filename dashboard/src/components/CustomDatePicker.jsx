@@ -121,15 +121,19 @@ export default function CustomDatePicker({ value, onChange }) {
           alignItems: "center",
           justifyContent: "space-between",
           width: "100%",
-          padding: "0.55rem 0.8rem",
-          borderRadius: "8px",
-          background: "var(--input-bg)",
-          border: "1px solid var(--input-border)",
+          padding: "0.5rem 1.1rem",
+          borderRadius: "30px",
+          background: "var(--card-bg)",
+          border: "1px solid var(--card-border)",
           color: "var(--text-primary)",
           fontSize: "0.82rem",
           cursor: "pointer",
-          userSelect: "none"
+          userSelect: "none",
+          boxShadow: "var(--shadow)",
+          transition: "all 0.2s"
         }}
+        onMouseEnter={(e) => e.currentTarget.style.borderColor = "var(--primary)"}
+        onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--card-border)"}
       >
         <span>{formatInputDisplay()}</span>
         <i className="fa-regular fa-calendar-days" style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}></i>
@@ -140,7 +144,7 @@ export default function CustomDatePicker({ value, onChange }) {
           style={{
             position: "absolute",
             top: "105%",
-            left: 0,
+            right: 0,
             zIndex: 9999,
             width: "280px",
             background: "var(--card-bg)",

@@ -73,11 +73,11 @@ export default function Overview({ agents, stageChanges = {}, reportDate = "2026
       <div className="overview-grid">
         <div className="kpi-card overview-card-1" style={{ color: "white" }}>
           <div className="kpi-icon" style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "white" }}>
-            <i className="fa-solid fa-dollar-sign"></i>
+            <i className="fa-solid fa-sterling-sign"></i>
           </div>
           <div className="kpi-info">
             <span className="kpi-title" style={{ color: "rgba(255,255,255,0.8)" }}>Margin Generated Today</span>
-            <h3 className="kpi-value">${totalMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+            <h3 className="kpi-value">£{totalMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
             <p className="kpi-subtext" style={{ color: "rgba(255,255,255,0.7)" }}>
               {new Date(reportDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })} BST additions
             </p>
@@ -187,11 +187,17 @@ export default function Overview({ agents, stageChanges = {}, reportDate = "2026
               <i className="fa-solid fa-layer-group"></i> Lead Segmentations Sums
             </h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "0.5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "1rem", marginTop: "0.5rem" }}>
             <div style={{ background: "rgba(14, 165, 233, 0.04)", border: "1px solid rgba(14, 165, 233, 0.15)", borderRadius: "12px", padding: "1.5rem 1rem", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.5rem", textAlign: "center" }}>
               <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 700 }}>New Leads</span>
               <h3 style={{ fontSize: "2.3rem", fontWeight: 800, color: "#38bdf8", margin: 0 }}>
                 {agents.reduce((sum, a) => sum + (a.segmentations?.newLeads || 0), 0)}
+              </h3>
+            </div>
+            <div style={{ background: "rgba(129, 140, 248, 0.04)", border: "1px solid rgba(129, 140, 248, 0.15)", borderRadius: "12px", padding: "1.5rem 1rem", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.5rem", textAlign: "center" }}>
+              <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 700 }}>Referrals</span>
+              <h3 style={{ fontSize: "2.3rem", fontWeight: 800, color: "#818cf8", margin: 0 }}>
+                {agents.reduce((sum, a) => sum + (a.segmentations?.referrals || 0), 0)}
               </h3>
             </div>
             <div style={{ background: "rgba(113, 167, 88, 0.04)", border: "1px solid rgba(113, 167, 88, 0.15)", borderRadius: "12px", padding: "1.5rem 1rem", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.5rem", textAlign: "center" }}>

@@ -24,6 +24,7 @@ export default function ProgressBarChart({
     if (!containerRef.current) return;
 
     const handleResize = () => {
+      if (!containerRef.current) return;
       const w = containerRef.current.clientWidth || 300;
       setDimensions({
         width: Math.max(w, 200),
@@ -92,7 +93,7 @@ export default function ProgressBarChart({
 
       // Tick Label
       const formattedTick = isCurrency
-        ? `$${Math.round(val)}`
+        ? `£${Math.round(val)}`
         : Math.round(val).toString();
       ctx.fillText(formattedTick, paddingLeft - 8, y);
     }
@@ -153,7 +154,7 @@ export default function ProgressBarChart({
         ctx.fillStyle = textPrimary;
         ctx.font = `700 ${labelFontSize} Outfit, sans-serif`;
         ctx.textAlign = "center";
-        const valText = isCurrency ? `$${Math.round(item.value)}` : item.value.toString();
+        const valText = isCurrency ? `£${Math.round(item.value)}` : item.value.toString();
         ctx.fillText(valText, x + barWidth / 2, y - 5);
       }
 
@@ -234,7 +235,7 @@ export default function ProgressBarChart({
         <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 800, color: "var(--text-primary)" }}>{title}</h3>
         <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem", marginTop: "0.4rem" }}>
           <span style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--text-primary)" }}>
-            {isCurrency ? `$${totalSum.toLocaleString(undefined, { minimumFractionDigits: 0 })}` : totalSum}
+            {isCurrency ? `£${totalSum.toLocaleString(undefined, { minimumFractionDigits: 0 })}` : totalSum}
           </span>
           <span style={{
             fontSize: "0.75rem",
@@ -278,7 +279,7 @@ export default function ProgressBarChart({
             <span className="tooltip-label">Value:</span>
             <span className="tooltip-value">
               {isCurrency
-                ? `$${data[hoveredIdx].value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                ? `£${data[hoveredIdx].value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                 : data[hoveredIdx].value}
             </span>
           </div>

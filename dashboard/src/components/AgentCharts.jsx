@@ -6,23 +6,23 @@ import ProgressBarChart from "./ProgressBarChart";
 export default function AgentCharts({ agents }) {
   // Extract and sort data for each metrics stage in descending order (highest first)
   const newLeadsData = agents
-    .map(a => ({ name: a.name, value: a.segmentations?.newLeads || 0 }))
+    .map(a => ({ name: a.name, value: a.segmentations?.newLeadsToday || 0 }))
     .sort((a, b) => b.value - a.value);
 
   const referralsData = agents
-    .map(a => ({ name: a.name, value: a.segmentations?.referrals || 0 }))
+    .map(a => ({ name: a.name, value: a.segmentations?.referralsToday || 0 }))
     .sort((a, b) => b.value - a.value);
 
   const bookedLeadsData = agents
-    .map(a => ({ name: a.name, value: a.segmentations?.bookedLeads || 0 }))
+    .map(a => ({ name: a.name, value: a.segmentations?.bookedLeadsToday || 0 }))
     .sort((a, b) => b.value - a.value);
 
   const apptBookedData = agents
-    .map(a => ({ name: a.name, value: a.segmentations?.apptBookedLeads || 0 }))
+    .map(a => ({ name: a.name, value: a.segmentations?.apptBookedLeadsToday || 0 }))
     .sort((a, b) => b.value - a.value);
 
   const closedLeadsData = agents
-    .map(a => ({ name: a.name, value: a.segmentations?.closedLeads || 0 }))
+    .map(a => ({ name: a.name, value: a.segmentations?.closedLeadsToday || 0 }))
     .sort((a, b) => b.value - a.value);
 
   const marginData = agents
@@ -86,15 +86,13 @@ export default function AgentCharts({ agents }) {
         />
 
         {/* 6. Margin Contributed Today Chart */}
-        <div style={{ gridColumn: "1 / -1" }}>
-          <ProgressBarChart
-            title="Margin Contributed Today ($)"
-            data={marginData}
-            color="var(--success-glow)" /* light caramel / green theme blend */
-            yLabel="Amount ($)"
-            isCurrency={true}
-          />
-        </div>
+        <ProgressBarChart
+          title="Margin Contributed Today (£)"
+          data={marginData}
+          color="var(--success-glow)" /* light caramel / green theme blend */
+          yLabel="Amount (£)"
+          isCurrency={true}
+        />
 
       </div>
     </div>

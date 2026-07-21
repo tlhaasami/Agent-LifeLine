@@ -1,12 +1,20 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
-export default function Sidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }) {
+export default function Sidebar({
+  activeTab,
+  onTabChange,
+  collapsed,
+  onToggleCollapse,
+  reportDate,
+  onDateChange,
+  availableDates
+}) {
   const menuItems = [
-    { id: "upload-data", label: "Upload Data", icon: "fa-cloud-arrow-up" },
     { id: "overview", label: "Overview", icon: "fa-cubes" },
-    { id: "activity-graph", label: "Activity Graph", icon: "fa-chart-column" },
+    { id: "activity-metrics", label: "Activity & Metrics", icon: "fa-chart-line" },
     { id: "agent-progress", label: "Agent Progress", icon: "fa-bars-progress" },
     { id: "agent-charts", label: "Progression Charts", icon: "fa-chart-gantt" },
     { id: "exec-conversion", label: "Agent Conversion", icon: "fa-file-invoice" },
@@ -39,6 +47,7 @@ export default function Sidebar({ activeTab, onTabChange, collapsed, onToggleCol
           </div>
         ))}
       </nav>
+
     </aside>
   );
 }

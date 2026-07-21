@@ -271,19 +271,12 @@ export function processAgentData(
       val && ["referal", "referral", "yes", "true"].includes(String(val).trim().toLowerCase())
     );
 
-    const bstCreated = toBST(row["Created on"], targetDateStr, timezone);
-    const createdToday = isJuly17BST(bstCreated, targetDateStr);
-
     if (isReferral) {
       agentSegmentations[agent].referrals++;
-      if (createdToday) {
-        agentSegmentations[agent].referralsToday++;
-      }
+      agentSegmentations[agent].referralsToday++;
     } else {
       agentSegmentations[agent].newLeads++;
-      if (createdToday) {
-        agentSegmentations[agent].newLeadsToday++;
-      }
+      agentSegmentations[agent].newLeadsToday++;
     }
   });
 
@@ -293,17 +286,13 @@ export function processAgentData(
   const newLeadsIds = new Set();
 
   newLeadsRows.forEach((row) => {
-    const bstCreated = toBST(row["Created on"], targetDateStr, timezone);
-    const createdToday = isJuly17BST(bstCreated, targetDateStr);
-    if (createdToday) {
-      const phone = (row["Phone number"] || row["phone"] || "").replace(/[^0-9+]/g, "").trim();
-      const email = (row["Email"] || row["email"] || "").trim().toLowerCase();
-      const oppId = (row["Opportunity ID"] || row["Opportunity ID"] || row["opportunityId"] || row["id"] || "").trim();
+    const phone = (row["Phone number"] || row["phone"] || "").replace(/[^0-9+]/g, "").trim();
+    const email = (row["Email"] || row["email"] || "").trim().toLowerCase();
+    const oppId = (row["Opportunity ID"] || row["Opportunity ID"] || row["opportunityId"] || row["id"] || "").trim();
 
-      if (phone) newLeadsPhones.add(phone);
-      if (email) newLeadsEmails.add(email);
-      if (oppId) newLeadsIds.add(oppId);
-    }
+    if (phone) newLeadsPhones.add(phone);
+    if (email) newLeadsEmails.add(email);
+    if (oppId) newLeadsIds.add(oppId);
   });
 
   bookedLeadsRows.forEach((row) => {
@@ -311,24 +300,7 @@ export function processAgentData(
     if (!agent) return;
     initAgentSegment(agent);
     agentSegmentations[agent].bookedLeads++;
-
-    const rawDate = getRowDateField(row, ["booked time", "booked date", "booking time", "booking date", "booked at", "booked_time", "booked_date", "booking_time", "booking_date"], "Created on");
-    const bstCreated = toBST(rawDate, targetDateStr, timezone);
-    if (isJuly17BST(bstCreated, targetDateStr)) {
-      // Must be present in today's shared new leads list
-      const phone = (row["Phone number"] || row["phone"] || "").replace(/[^0-9+]/g, "").trim();
-      const email = (row["Email"] || row["email"] || "").trim().toLowerCase();
-      const oppId = (row["Opportunity ID"] || row["Opportunity ID"] || row["opportunityId"] || row["id"] || "").trim();
-
-      const isNewSharedLead = 
-        (phone && newLeadsPhones.has(phone)) ||
-        (email && newLeadsEmails.has(email)) ||
-        (oppId && newLeadsIds.has(oppId));
-
-      if (isNewSharedLead) {
-        agentSegmentations[agent].bookedLeadsToday++;
-      }
-    }
+    agentSegmentations[agent].bookedLeadsToday++;
   });
 
   apptBookedLeadsRows.forEach((row) => {
@@ -336,24 +308,7 @@ export function processAgentData(
     if (!agent) return;
     initAgentSegment(agent);
     agentSegmentations[agent].apptBookedLeads++;
-
-    const rawDate = getRowDateField(row, ["appointment date", "appointment time", "appointment_date", "appointment_time", "appt date", "appt time", "appt_date", "appt_time", "appointment"], "Created on");
-    const bstCreated = toBST(rawDate, targetDateStr, timezone);
-    if (isJuly17BST(bstCreated, targetDateStr)) {
-      // Must be present in today's shared new leads list
-      const phone = (row["Phone number"] || row["phone"] || "").replace(/[^0-9+]/g, "").trim();
-      const email = (row["Email"] || row["email"] || "").trim().toLowerCase();
-      const oppId = (row["Opportunity ID"] || row["Opportunity ID"] || row["opportunityId"] || row["id"] || "").trim();
-
-      const isNewSharedLead = 
-        (phone && newLeadsPhones.has(phone)) ||
-        (email && newLeadsEmails.has(email)) ||
-        (oppId && newLeadsIds.has(oppId));
-
-      if (isNewSharedLead) {
-        agentSegmentations[agent].apptBookedLeadsToday++;
-      }
-    }
+    agentSegmentations[agent].apptBookedLeadsToday++;
   });
 
   closedLeadsRows.forEach((row) => {
@@ -361,12 +316,7 @@ export function processAgentData(
     if (!agent) return;
     initAgentSegment(agent);
     agentSegmentations[agent].closedLeads++;
-
-    const rawDate = getRowDateField(row, ["closed date", "closed time", "closed_date", "closed_time", "date closed", "date_closed", "closed at"], "Created on");
-    const bstCreated = toBST(rawDate, targetDateStr, timezone);
-    if (isJuly17BST(bstCreated, targetDateStr)) {
-      agentSegmentations[agent].closedLeadsToday++;
-    }
+    agentSegmentations[agent].closedLeadsToday++;
   });
 
   // 3. Process Call logs to BST standard
@@ -464,25 +414,178 @@ export function processAgentData(
     }
   });
 
-  // 5. Margin summation on July 17, 2026 BST
+  // 5. Margin summation on target day BST
   const agentMargins = {};
   opportunitiesRows.forEach((row) => {
-    const assignedRaw = row.assigned || row.Assigned || row["Assigned user"];
+    const assignedRaw = row.assigned || row.Assigned || row["Assigned user"] || row["Assigned User"];
     if (!assignedRaw) return;
     const assigned = normalizeAgentName(assignedRaw);
 
     if (isMarginOnly) {
-      const marginVal = parseFloat(row["Margin Amount"] || row["Margin value"] || row["Lead Value"] || row["Lead value"] || 0);
-      agentMargins[assigned] = (agentMargins[assigned] || 0) + marginVal;
+      // For margin-only reports, treat rows as correct date and sum by Lead value
+      const leadVal = parseFloat(row["Lead value"] || row["Lead Value"] || 0);
+      agentMargins[assigned] = (agentMargins[assigned] || 0) + leadVal;
     } else {
+      // For regular opportunity list, verify Margin Amount matches Lead value, on the correct target date
       const marginAddedDate = row["Margin Added Date"] || row["margin_added_date"];
-      const bstMarginDate = toBST(marginAddedDate, targetDateStr, "BST");
+      if (!marginAddedDate) return;
 
+      const bstMarginDate = toBST(marginAddedDate, targetDateStr, "BST");
       if (isJuly17BST(bstMarginDate, targetDateStr)) {
-        const marginVal = parseFloat(row["Margin Amount"] || row["Margin value"] || row["Lead Value"] || row["Lead value"] || 0);
-        agentMargins[assigned] = (agentMargins[assigned] || 0) + marginVal;
+        const marginValRaw = row["Margin Amount"] || row["Margin amount"] || "0";
+        const leadValRaw = row["Lead value"] || row["Lead Value"] || "0";
+
+        const marginVal = parseFloat(marginValRaw);
+        const leadVal = parseFloat(leadValRaw);
+
+        if (marginVal === leadVal) {
+          agentMargins[assigned] = (agentMargins[assigned] || 0) + marginVal;
+        }
       }
     }
+  });
+
+  // Compile raw new leads and margin opportunities details per agent
+  const agentNewLeadsDetails = {};
+  newLeadsRows.forEach((row) => {
+    const agent = normalizeAgentName(row["Assigned user"] || row.assigned || findAgent(row["Phone number"], row["Opportunity name"]));
+    if (!agent) return;
+    if (!agentNewLeadsDetails[agent]) agentNewLeadsDetails[agent] = [];
+    agentNewLeadsDetails[agent].push({
+      name: row["Opportunity name"] || row["Primary Contact name"] || "Unknown",
+      email: row["Email"] || "",
+      phone: row["Phone number"] || "",
+      tags: row["Tags"] || "",
+      source: row["Source"] || "",
+      assigned: agent,
+      created: row["Created on"]
+    });
+  });
+
+  const agentMarginDetails = {};
+  opportunitiesRows.forEach((row) => {
+    const assignedRaw = row.assigned || row.Assigned || row["Assigned user"] || row["Assigned User"];
+    if (!assignedRaw) return;
+    const assigned = normalizeAgentName(assignedRaw);
+
+    if (isMarginOnly) {
+      const leadVal = parseFloat(row["Lead value"] || row["Lead Value"] || 0);
+      if (!agentMarginDetails[assigned]) agentMarginDetails[assigned] = [];
+      agentMarginDetails[assigned].push({
+        name: row["Opportunity name"] || row["Primary Contact name"] || "Unknown",
+        margin: leadVal,
+        date: targetDateStr,
+        stage: row["Stage"] || "",
+        status: row["Status"] || "",
+        source: row["Source"] || "",
+        phone: row["Phone number"] || "",
+        email: row["Email"] || ""
+      });
+    } else {
+      const marginAddedDate = row["Margin Added Date"] || row["margin_added_date"];
+      if (!marginAddedDate) return;
+      const bstMarginDate = toBST(marginAddedDate, targetDateStr, timezone);
+      if (isJuly17BST(bstMarginDate, targetDateStr)) {
+        const marginValRaw = row["Margin Amount"] || row["Margin amount"] || "0";
+        const leadValRaw = row["Lead value"] || row["Lead Value"] || "0";
+        const marginVal = parseFloat(marginValRaw);
+        const leadVal = parseFloat(leadValRaw);
+        if (marginVal === leadVal) {
+          if (!agentMarginDetails[assigned]) agentMarginDetails[assigned] = [];
+          agentMarginDetails[assigned].push({
+            name: row["Opportunity name"] || row["Primary Contact name"] || "Unknown",
+            margin: marginVal,
+            date: marginAddedDate,
+            stage: row["Stage"] || "",
+            status: row["Status"] || "",
+            source: row["Source"] || "",
+            phone: row["Phone number"] || "",
+            email: row["Email"] || ""
+          });
+        }
+      }
+    }
+  });
+
+  // Compile today's conversion leads details per agent (treating all rows as active today)
+  const agentTodayConversions = {};
+  bookedLeadsRows.forEach((row) => {
+    const agent = normalizeAgentName(row["Assigned user"] || row.assigned || findAgent(row["Phone number"], row["Opportunity name"]));
+    if (!agent) return;
+    const rawDate = getRowDateField(row, ["booked time", "booked date", "booking time", "booking date", "booked at", "booked_time", "booked_date", "booking_time", "booking_date"], "Created on");
+    if (!agentTodayConversions[agent]) agentTodayConversions[agent] = [];
+    agentTodayConversions[agent].push({
+      name: row["Opportunity name"] || row["Primary Contact name"] || "Unknown",
+      phone: row["Phone number"] || "",
+      email: row["Email"] || "",
+      stage: "Booked",
+      date: rawDate,
+      agent: agent
+    });
+  });
+
+  apptBookedLeadsRows.forEach((row) => {
+    const agent = normalizeAgentName(row["Assigned user"] || row.assigned || findAgent(row["Phone number"], row["Opportunity name"]));
+    if (!agent) return;
+    const rawDate = getRowDateField(row, ["appointment date", "appointment time", "appointment_date", "appointment_time", "appt date", "appt time", "appt_date", "appt_time", "appointment"], "Created on");
+    if (!agentTodayConversions[agent]) agentTodayConversions[agent] = [];
+    const exists = agentTodayConversions[agent].some(l => l.phone === row["Phone number"] || l.email === row["Email"]);
+    if (!exists) {
+      agentTodayConversions[agent].push({
+        name: row["Opportunity name"] || row["Primary Contact name"] || "Unknown",
+        phone: row["Phone number"] || "",
+        email: row["Email"] || "",
+        stage: "Appointment Booked",
+        date: rawDate,
+        agent: agent
+      });
+    }
+  });
+
+  // Compile booked, closed, and appt booked details per agent
+  const agentBookedLeads = {};
+  bookedLeadsRows.forEach((row) => {
+    const agent = normalizeAgentName(row["Assigned user"] || row.assigned || findAgent(row["Phone number"], row["Opportunity name"]));
+    if (!agent) return;
+    if (!agentBookedLeads[agent]) agentBookedLeads[agent] = [];
+    agentBookedLeads[agent].push({
+      name: row["Opportunity name"] || row["Primary Contact name"] || "Unknown",
+      phone: row["Phone number"] || "",
+      email: row["Email"] || "",
+      stage: row["Stage"] || "Booked",
+      date: row["Created on"] || row["Booked Date"] || row["booking date"] || "",
+      agent: agent
+    });
+  });
+
+  const agentClosedLeads = {};
+  closedLeadsRows.forEach((row) => {
+    const agent = normalizeAgentName(row["Assigned user"] || row.assigned || findAgent(row["Phone number"], row["Opportunity name"]));
+    if (!agent) return;
+    if (!agentClosedLeads[agent]) agentClosedLeads[agent] = [];
+    agentClosedLeads[agent].push({
+      name: row["Opportunity name"] || row["Primary Contact name"] || "Unknown",
+      phone: row["Phone number"] || "",
+      email: row["Email"] || "",
+      stage: row["Stage"] || "Closed Won",
+      date: row["Created on"] || row["Closed Date"] || row["closed date"] || "",
+      agent: agent
+    });
+  });
+
+  const agentApptBookedLeads = {};
+  apptBookedLeadsRows.forEach((row) => {
+    const agent = normalizeAgentName(row["Assigned user"] || row.assigned || findAgent(row["Phone number"], row["Opportunity name"]));
+    if (!agent) return;
+    if (!agentApptBookedLeads[agent]) agentApptBookedLeads[agent] = [];
+    agentApptBookedLeads[agent].push({
+      name: row["Opportunity name"] || row["Primary Contact name"] || "Unknown",
+      phone: row["Phone number"] || "",
+      email: row["Email"] || "",
+      stage: row["Stage"] || "Appointment Booked",
+      date: row["Created on"] || row["Appointment Date"] || row["appointment date"] || "",
+      agent: agent
+    });
   });
 
   // Compile final results dictionary per agent
@@ -583,6 +686,7 @@ export function processAgentData(
         timestamp: act.dt.toISOString(),
         module: act.module,
         action: act.action,
+        details: act.details || "",
       });
     });
 
@@ -590,11 +694,15 @@ export function processAgentData(
     let stageInterested = 0;
     let stageContacted = 0;
     let notesCount = 0;
+    let tasksCount = 0;
 
     activities.forEach((act) => {
       if (isJuly17BST(act.dt, targetDateStr)) {
         if (act.module === "NOTE") {
           notesCount++;
+        }
+        if (act.module === "TASK") {
+          tasksCount++;
         }
         if (act.module === "OPPORTUNITY" && act.details) {
           if (act.details.includes('"pipelineStageName":"Interested"')) {
@@ -665,7 +773,48 @@ export function processAgentData(
       }
     });
 
+    // Calculate unique interacted leads and conversions
+    const interactedLeads = new Set();
+    const interactedConversions = new Set();
+
+    actionsList.forEach(act => {
+      let leadId = null;
+      if (act.details) {
+        try {
+          const detailsObj = typeof act.details === "string" ? JSON.parse(act.details) : act.details;
+          leadId = detailsObj.contactId || detailsObj.opportunityId || detailsObj.id;
+        } catch (e) {
+          const m1 = act.details.match(/"contactId"\s*:\s*"([^"]+)"/);
+          const m2 = act.details.match(/"opportunityId"\s*:\s*"([^"]+)"/);
+          const m3 = act.details.match(/"id"\s*:\s*"([^"]+)"/);
+          leadId = (m1 && m1[1]) || (m2 && m2[1]) || (m3 && m3[1]);
+        }
+      }
+      if (leadId) {
+        interactedLeads.add(leadId);
+        const isConvertedStage = act.module === "OPPORTUNITY" && act.details && 
+          (act.details.includes('"pipelineStageName":"Booked"') || 
+           act.details.includes('"pipelineStageName":"Appointment Booked"') ||
+           act.details.includes('"status":"won"'));
+        if (isConvertedStage) {
+          interactedConversions.add(leadId);
+        }
+      }
+    });
+
+    const interactedLeadsCount = interactedLeads.size;
+    const interactedConversionsCount = interactedConversions.size;
+
+    // Override New Leads metrics to represent assigned opportunities + unique interacted contacts
+    seg.newLeads = opportunitiesCount + interactedLeadsCount;
+    seg.newLeadsToday = opportunitiesCount + interactedLeadsCount;
+
+    // Recalculate Table 2 conversion rate with the updated today's new leads count
+    const updatedTodayConvRate = seg.newLeadsToday > 0 ? (convertedToday / seg.newLeadsToday) * 100 : 0.0;
+
     results[agent] = {
+      interacted_leads_today: interactedLeadsCount,
+      interacted_conversions_today: interactedConversionsCount,
       // General stats
       total_actions: totalActions,
       first_action: firstAction ? firstAction.toISOString() : null,
@@ -680,6 +829,12 @@ export function processAgentData(
       actions_list: actionsList,
       assigned_opportunities: opportunitiesCount,
       calls: agentCalls[agent] || [],
+      new_leads_details: agentNewLeadsDetails[agent] || [],
+      margin_opportunities_details: agentMarginDetails[agent] || [],
+      today_conversion_leads: agentTodayConversions[agent] || [],
+      booked_leads_details: agentBookedLeads[agent] || [],
+      closed_leads_details: agentClosedLeads[agent] || [],
+      appt_booked_leads_details: agentApptBookedLeads[agent] || [],
 
       // Segmentation stats
       segmentations: seg,
@@ -687,13 +842,14 @@ export function processAgentData(
       stage_interested_today: stageInterested,
       stage_contacted_today: stageContacted,
       notes_updated_today: notesCount,
+      tasks_added_today: tasksCount,
       general_conv_rate: generalConvRate,
 
       // Today's Conversion stats (Table 2)
       new_leads_today: seg.newLeadsToday,
       referrals_today: seg.referralsToday || 0,
       converted_today: convertedToday,
-      today_conv_rate: todayConvRate,
+      today_conv_rate: updatedTodayConvRate,
 
       // Call metrics stats (Table 3)
       call_metrics: {

@@ -7,7 +7,7 @@ const CANVAS_MIN_WIDTH = 1200;
 // Max visible height before vertical scroll kicks in
 const MAX_VISIBLE_HEIGHT = 520;
 
-export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, reportDate = "2026-07-17", showGhlMessages = true, ghlMessages = [] }) {
+export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, reportDate = "2026-07-17", showGhlMessages = true, ghlMessages = [], hideNames = false }) {
   const canvasRef = useRef(null);
   const namesCanvasRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -19,6 +19,8 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
   const [endHour, setEndHour] = useState(20);
   const [hoveredItem, setHoveredItem] = useState(null);
   const [canvasWidth, setCanvasWidth] = useState(CANVAS_MIN_WIDTH);
+  const [startDropOpen, setStartDropOpen] = useState(false);
+  const [endDropOpen, setEndDropOpen] = useState(false);
 
   // Layout constants
   const timelineLeftMargin = 0;   // Names are on separate canvas now
@@ -136,13 +138,17 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
     const updateWidth = () => {
       if (!scrollContainerRef.current) return;
       const containerW = scrollContainerRef.current.clientWidth;
-      setCanvasWidth(Math.max(CANVAS_MIN_WIDTH, containerW));
+      if (hideNames) {
+        setCanvasWidth(containerW);
+      } else {
+        setCanvasWidth(Math.max(CANVAS_MIN_WIDTH, containerW));
+      }
     };
     updateWidth();
     const ro = new ResizeObserver(updateWidth);
     if (scrollContainerRef.current) ro.observe(scrollContainerRef.current);
     return () => ro.disconnect();
-  }, []);
+  }, [hideNames]);
 
   // ── Sync vertical scroll between names panel and chart ────────────────────
   const handleChartScroll = useCallback(() => {
@@ -367,7 +373,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
       ctx.lineTo(displayWidth, rowTop + timelineRowHeight);
       ctx.stroke();
 
-      const details = agent.details;
+      const details = agent.details || agent;
 
 
 
@@ -494,7 +500,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
     const displayWidth = canvasWidth;
     const yCenter =
       timelineTopMargin + idx * timelineRowHeight + timelineRowHeight / 2;
-    const details = agent.details;
+    const details = agent.details || agent;
     let hovered = null;
 
     // 1. Calls (Outbound Only) - Check call blocks first to prioritize hover over sessions
@@ -716,45 +722,151 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
 
         <div className="timeline-controls-row">
           {/* Time range controls */}
-          <div className="timeline-controls">
-            <label>
-              <i className="fa-solid fa-hourglass-start"></i> Start:{" "}
-              <select
-                id="team-start-hour"
-                className="mini-select"
-                value={startHour}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  setStartHour(val);
-                  if (val >= endHour) setEndHour(Math.min(24, val + 1));
-                }}
-              >
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {i.toString().padStart(2, "0")}:00
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <i className="fa-solid fa-hourglass-end"></i> End:{" "}
-              <select
-                id="team-end-hour"
-                className="mini-select"
-                value={endHour}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  setEndHour(val);
-                  if (val <= startHour) setStartHour(Math.max(0, val - 1));
-                }}
-              >
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {(i + 1).toString().padStart(2, "00")}:00
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="timeline-controls" style={{ display: "flex", gap: "1.25rem", alignItems: "center" }}>
+            {/* Start Hour Custom Dropdown */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                <i className="fa-solid fa-hourglass-start" style={{ color: "var(--primary)" }}></i> Start:
+              </span>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setStartDropOpen(!startDropOpen)}
+                  style={{
+                    padding: "0.4rem 0.9rem",
+                    borderRadius: "8px",
+                    background: "var(--card-bg)",
+                    border: "1px solid var(--card-border)",
+                    color: "var(--text-primary)",
+                    fontSize: "0.82rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  {startHour.toString().padStart(2, "0")}:00
+                  <i className={`fa-solid fa-chevron-${startDropOpen ? "up" : "down"}`} style={{ fontSize: "0.65rem", color: "var(--primary)" }}></i>
+                </button>
+                {startDropOpen && (
+                  <>
+                    <div onClick={() => setStartDropOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9999 }} />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "105%",
+                        left: 0,
+                        minWidth: "110px",
+                        maxHeight: "200px",
+                        overflowY: "auto",
+                        zIndex: 10000,
+                        borderRadius: "8px",
+                        border: "1px solid var(--card-border)",
+                        background: "var(--card-bg)",
+                        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.3)",
+                        padding: "0.3rem 0",
+                      }}
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <div
+                          key={i}
+                          onClick={() => {
+                            setStartHour(i);
+                            if (i >= endHour) setEndHour(Math.min(24, i + 1));
+                            setStartDropOpen(false);
+                          }}
+                          style={{
+                            padding: "0.5rem 0.9rem",
+                            fontSize: "0.8rem",
+                            cursor: "pointer",
+                            background: startHour === i ? "rgba(209,92,46,0.08)" : "transparent",
+                            color: startHour === i ? "var(--primary)" : "var(--text-primary)",
+                            fontWeight: 600,
+                          }}
+                          onMouseEnter={(e) => { if (startHour !== i) e.currentTarget.style.background = "var(--border-light)"; }}
+                          onMouseLeave={(e) => { if (startHour !== i) e.currentTarget.style.background = "transparent"; }}
+                        >
+                          {i.toString().padStart(2, "0")}:00
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* End Hour Custom Dropdown */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                <i className="fa-solid fa-hourglass-end" style={{ color: "var(--primary)" }}></i> End:
+              </span>
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setEndDropOpen(!endDropOpen)}
+                  style={{
+                    padding: "0.4rem 0.9rem",
+                    borderRadius: "8px",
+                    background: "var(--card-bg)",
+                    border: "1px solid var(--card-border)",
+                    color: "var(--text-primary)",
+                    fontSize: "0.82rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  {endHour.toString().padStart(2, "0")}:00
+                  <i className={`fa-solid fa-chevron-${endDropOpen ? "up" : "down"}`} style={{ fontSize: "0.65rem", color: "var(--primary)" }}></i>
+                </button>
+                {endDropOpen && (
+                  <>
+                    <div onClick={() => setEndDropOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9999 }} />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "105%",
+                        left: 0,
+                        minWidth: "110px",
+                        maxHeight: "200px",
+                        overflowY: "auto",
+                        zIndex: 10000,
+                        borderRadius: "8px",
+                        border: "1px solid var(--card-border)",
+                        background: "var(--card-bg)",
+                        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.3)",
+                        padding: "0.3rem 0",
+                      }}
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <div
+                          key={i}
+                          onClick={() => {
+                            const val = i + 1;
+                            setEndHour(val);
+                            if (val <= startHour) setStartHour(Math.max(0, val - 1));
+                            setEndDropOpen(false);
+                          }}
+                          style={{
+                            padding: "0.5rem 0.9rem",
+                            fontSize: "0.8rem",
+                            cursor: "pointer",
+                            background: endHour === (i + 1) ? "rgba(209,92,46,0.08)" : "transparent",
+                            color: endHour === (i + 1) ? "var(--primary)" : "var(--text-primary)",
+                            fontWeight: 600,
+                          }}
+                          onMouseEnter={(e) => { if (endHour !== (i + 1)) e.currentTarget.style.background = "var(--border-light)"; }}
+                          onMouseLeave={(e) => { if (endHour !== (i + 1)) e.currentTarget.style.background = "transparent"; }}
+                        >
+                          {(i + 1).toString().padStart(2, "0")}:00
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Legend — Outbound Calls & Operations */}
@@ -772,13 +884,15 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
       {/* ── Canvas area: sticky names + scrollable chart (No vertical scroll maxHeight) ─────────────────── */}
       <div ref={containerRef} className="timeline-canvas-wrapper">
         {/* Names column (sticky, vertical-scroll synced if needed) */}
-        <div
-          ref={namesScrollRef}
-          className="timeline-names-panel"
-          onScroll={handleNamesScroll}
-        >
-          <canvas ref={namesCanvasRef} style={{ display: "block" }} />
-        </div>
+        {!hideNames && (
+          <div
+            ref={namesScrollRef}
+            className="timeline-names-panel"
+            onScroll={handleNamesScroll}
+          >
+            <canvas ref={namesCanvasRef} style={{ display: "block" }} />
+          </div>
+        )}
 
         {/* Chart area (horizontal scroll only) */}
         <div
@@ -786,6 +900,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
           id="timeline-canvas-container"
           className="timeline-chart-panel"
           onScroll={handleChartScroll}
+          style={{ flex: 1, overflowX: hideNames ? "hidden" : "auto" }}
         >
           <canvas
             ref={canvasRef}
