@@ -285,11 +285,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 36,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 36,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -302,7 +302,7 @@
       "notes_updated_today": 9,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 36,
+      "new_leads_today": 1,
       "referrals_today": 0,
       "converted_today": 0,
       "today_conv_rate": 0,
@@ -435,11 +435,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 23,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 23,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -452,7 +452,7 @@
       "notes_updated_today": 3,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 23,
+      "new_leads_today": 1,
       "referrals_today": 0,
       "converted_today": 0,
       "today_conv_rate": 0,
@@ -954,7 +954,7 @@
       "margin_opportunities_details": [],
       "today_conversion_leads": [
         {
-          "name": "Unknown",
+          "name": "esteffe rose directo",
           "phone": "",
           "email": "",
           "stage": "Booked",
@@ -964,7 +964,7 @@
       ],
       "booked_leads_details": [
         {
-          "name": "Unknown",
+          "name": "esteffe rose directo",
           "phone": "",
           "email": "",
           "stage": "Booked",
@@ -975,11 +975,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 59,
+        "newLeads": 2,
         "bookedLeads": 1,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 59,
+        "newLeadsToday": 2,
         "bookedLeadsToday": 1,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -992,10 +992,10 @@
       "notes_updated_today": 20,
       "tasks_added_today": 0,
       "general_conv_rate": 2.380952380952381,
-      "new_leads_today": 59,
+      "new_leads_today": 2,
       "referrals_today": 0,
       "converted_today": 1,
-      "today_conv_rate": 1.694915254237288,
+      "today_conv_rate": 50,
       "call_metrics": {
         "outboundCount": 26,
         "outboundAttended": 21,
@@ -1530,11 +1530,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 53,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 53,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -1547,7 +1547,7 @@
       "notes_updated_today": 21,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 53,
+      "new_leads_today": 1,
       "referrals_today": 0,
       "converted_today": 0,
       "today_conv_rate": 0,
@@ -1706,11 +1706,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 19,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 19,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -1723,7 +1723,7 @@
       "notes_updated_today": 2,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 19,
+      "new_leads_today": 1,
       "referrals_today": 0,
       "converted_today": 0,
       "today_conv_rate": 0,
@@ -2199,11 +2199,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 55,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 55,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -2216,7 +2216,7 @@
       "notes_updated_today": 6,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 55,
+      "new_leads_today": 1,
       "referrals_today": 0,
       "converted_today": 0,
       "today_conv_rate": 0,
@@ -2373,11 +2373,9 @@
           "email": ""
         }
       ],
-      "today_conversion_leads": [],
-      "booked_leads_details": [],
-      "closed_leads_details": [
+      "today_conversion_leads": [
         {
-          "name": "Unknown",
+          "name": "liby",
           "phone": "+447405824704",
           "email": "lonewolf3027@gmail.com",
           "stage": "Closed Won",
@@ -2385,7 +2383,7 @@
           "agent": "Emma Evans"
         },
         {
-          "name": "Unknown",
+          "name": "anmol",
           "phone": "+447352670676",
           "email": "anmolagrawal2002@outlook.com",
           "stage": "Closed Won",
@@ -2393,7 +2391,7 @@
           "agent": "Emma Evans"
         },
         {
-          "name": "Unknown",
+          "name": "khaled rahman riad",
           "phone": "+447440458451",
           "email": "khaled.rahman@centro.com.bd",
           "stage": "Closed Won",
@@ -2401,7 +2399,42 @@
           "agent": "Emma Evans"
         },
         {
-          "name": "Unknown",
+          "name": "harshal",
+          "phone": "+447436507170",
+          "email": "harshulvr003@gmail.com",
+          "stage": "Closed Won",
+          "date": "Jul 18 2026",
+          "agent": "Emma Evans"
+        }
+      ],
+      "booked_leads_details": [],
+      "closed_leads_details": [
+        {
+          "name": "liby",
+          "phone": "+447405824704",
+          "email": "lonewolf3027@gmail.com",
+          "stage": "Closed Won",
+          "date": "Apr 17 2026",
+          "agent": "Emma Evans"
+        },
+        {
+          "name": "anmol",
+          "phone": "+447352670676",
+          "email": "anmolagrawal2002@outlook.com",
+          "stage": "Closed Won",
+          "date": "Jul 18 2026",
+          "agent": "Emma Evans"
+        },
+        {
+          "name": "khaled rahman riad",
+          "phone": "+447440458451",
+          "email": "khaled.rahman@centro.com.bd",
+          "stage": "Closed Won",
+          "date": "Jul 08 2026",
+          "agent": "Emma Evans"
+        },
+        {
+          "name": "harshal",
           "phone": "+447436507170",
           "email": "harshulvr003@gmail.com",
           "stage": "Closed Won",
@@ -2411,11 +2444,11 @@
       ],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 16,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 4,
-        "newLeadsToday": 16,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 4,
@@ -2428,10 +2461,10 @@
       "notes_updated_today": 0,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 16,
+      "new_leads_today": 1,
       "referrals_today": 0,
-      "converted_today": 0,
-      "today_conv_rate": 0,
+      "converted_today": 4,
+      "today_conv_rate": 400,
       "call_metrics": {
         "outboundCount": 2,
         "outboundAttended": 1,
@@ -2881,11 +2914,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 52,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 52,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -2898,7 +2931,7 @@
       "notes_updated_today": 4,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 52,
+      "new_leads_today": 1,
       "referrals_today": 0,
       "converted_today": 0,
       "today_conv_rate": 0,
@@ -3300,11 +3333,20 @@
           "email": ""
         }
       ],
-      "today_conversion_leads": [],
+      "today_conversion_leads": [
+        {
+          "name": "murali bathala",
+          "phone": "+447405872140",
+          "email": "mkrishna2311@gmail.com",
+          "stage": "Closed Won",
+          "date": "Nov 22 2025",
+          "agent": "Jennie Miller"
+        }
+      ],
       "booked_leads_details": [],
       "closed_leads_details": [
         {
-          "name": "Unknown",
+          "name": "murali bathala",
           "phone": "+447405872140",
           "email": "mkrishna2311@gmail.com",
           "stage": "Closed Won",
@@ -3314,11 +3356,11 @@
       ],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 45,
+        "newLeads": 0,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 1,
-        "newLeadsToday": 45,
+        "newLeadsToday": 0,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 1,
@@ -3331,9 +3373,9 @@
       "notes_updated_today": 10,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 45,
+      "new_leads_today": 0,
       "referrals_today": 0,
-      "converted_today": 0,
+      "converted_today": 1,
       "today_conv_rate": 0,
       "call_metrics": {
         "outboundCount": 23,
@@ -3687,29 +3729,12 @@
           "email": ""
         }
       ],
-      "today_conversion_leads": [
-        {
-          "name": "Unknown",
-          "phone": "",
-          "email": "",
-          "stage": "Appointment Booked",
-          "date": "Jul 20 2026",
-          "agent": "Jessica Jessie"
-        },
-        {
-          "name": "Unknown",
-          "phone": "+447476654285",
-          "email": "fantamady92@gmail.com",
-          "stage": "Appointment Booked",
-          "date": "Nov 11 2025",
-          "agent": "Jessica Jessie"
-        }
-      ],
+      "today_conversion_leads": [],
       "booked_leads_details": [],
       "closed_leads_details": [],
       "appt_booked_leads_details": [
         {
-          "name": "Unknown",
+          "name": "aju",
           "phone": "",
           "email": "",
           "stage": "Appointment Booked",
@@ -3717,7 +3742,7 @@
           "agent": "Jessica Jessie"
         },
         {
-          "name": "Unknown",
+          "name": "mohamed camara",
           "phone": "+447476654285",
           "email": "fantamady92@gmail.com",
           "stage": "Appointment Booked",
@@ -3726,11 +3751,11 @@
         }
       ],
       "segmentations": {
-        "newLeads": 48,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 2,
         "closedLeads": 0,
-        "newLeadsToday": 48,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 2,
         "closedLeadsToday": 0,
@@ -3743,10 +3768,10 @@
       "notes_updated_today": 9,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 48,
+      "new_leads_today": 1,
       "referrals_today": 0,
-      "converted_today": 2,
-      "today_conv_rate": 4.166666666666666,
+      "converted_today": 0,
+      "today_conv_rate": 0,
       "call_metrics": {
         "outboundCount": 18,
         "outboundAttended": 12,
@@ -5012,7 +5037,7 @@
       "margin_opportunities_details": [],
       "today_conversion_leads": [
         {
-          "name": "Unknown",
+          "name": "naeem bukhari",
           "phone": "+447925017451",
           "email": "smnbukhari@gmail.com",
           "stage": "Booked",
@@ -5020,7 +5045,7 @@
           "agent": "Lisa Evans"
         },
         {
-          "name": "Unknown",
+          "name": "olakunle lawrence",
           "phone": "",
           "email": "",
           "stage": "Booked",
@@ -5030,7 +5055,7 @@
       ],
       "booked_leads_details": [
         {
-          "name": "Unknown",
+          "name": "naeem bukhari",
           "phone": "+447925017451",
           "email": "smnbukhari@gmail.com",
           "stage": "Booked",
@@ -5038,7 +5063,7 @@
           "agent": "Lisa Evans"
         },
         {
-          "name": "Unknown",
+          "name": "olakunle lawrence",
           "phone": "",
           "email": "",
           "stage": "Booked",
@@ -5049,7 +5074,7 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [
         {
-          "name": "Unknown",
+          "name": "olakunle lawrence",
           "phone": "",
           "email": "",
           "stage": "Appointment Booked",
@@ -5058,11 +5083,11 @@
         }
       ],
       "segmentations": {
-        "newLeads": 132,
+        "newLeads": 1,
         "bookedLeads": 2,
         "apptBookedLeads": 1,
         "closedLeads": 0,
-        "newLeadsToday": 132,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 2,
         "apptBookedLeadsToday": 1,
         "closedLeadsToday": 0,
@@ -5075,10 +5100,10 @@
       "notes_updated_today": 60,
       "tasks_added_today": 0,
       "general_conv_rate": 2.4691358024691357,
-      "new_leads_today": 132,
+      "new_leads_today": 1,
       "referrals_today": 0,
-      "converted_today": 3,
-      "today_conv_rate": 2.272727272727273,
+      "converted_today": 2,
+      "today_conv_rate": 200,
       "call_metrics": {
         "outboundCount": 82,
         "outboundAttended": 52,
@@ -5577,11 +5602,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 50,
+        "newLeads": 0,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 50,
+        "newLeadsToday": 0,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -5594,7 +5619,7 @@
       "notes_updated_today": 17,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 50,
+      "new_leads_today": 0,
       "referrals_today": 0,
       "converted_today": 0,
       "today_conv_rate": 0,
@@ -6224,18 +6249,7 @@
       ],
       "today_conversion_leads": [
         {
-          "name": "Unknown",
-          "phone": "+447798913730",
-          "email": "saitejakoutharapu@gmail.com",
-          "stage": "Appointment Booked",
-          "date": "Jul 07 2026",
-          "agent": "Nancy Watson"
-        }
-      ],
-      "booked_leads_details": [],
-      "closed_leads_details": [
-        {
-          "name": "Unknown",
+          "name": "ammar bin khalid",
           "phone": "",
           "email": "",
           "stage": "Closed Won",
@@ -6243,7 +6257,7 @@
           "agent": "Nancy Watson"
         },
         {
-          "name": "Unknown",
+          "name": "deepak",
           "phone": "+447500934182",
           "email": "deepak.yn@gmail.com",
           "stage": "Closed Won",
@@ -6251,7 +6265,34 @@
           "agent": "Nancy Watson"
         },
         {
-          "name": "Unknown",
+          "name": "sai teja",
+          "phone": "+447798913730",
+          "email": "saitejakoutharapu@gmail.com",
+          "stage": "Closed Won",
+          "date": "Jul 07 2026",
+          "agent": "Nancy Watson"
+        }
+      ],
+      "booked_leads_details": [],
+      "closed_leads_details": [
+        {
+          "name": "ammar bin khalid",
+          "phone": "",
+          "email": "",
+          "stage": "Closed Won",
+          "date": "Jul 20 2026",
+          "agent": "Nancy Watson"
+        },
+        {
+          "name": "deepak",
+          "phone": "+447500934182",
+          "email": "deepak.yn@gmail.com",
+          "stage": "Closed Won",
+          "date": "Jul 04 2026",
+          "agent": "Nancy Watson"
+        },
+        {
+          "name": "sai teja",
           "phone": "+447798913730",
           "email": "saitejakoutharapu@gmail.com",
           "stage": "Closed Won",
@@ -6261,7 +6302,7 @@
       ],
       "appt_booked_leads_details": [
         {
-          "name": "Unknown",
+          "name": "sai teja",
           "phone": "+447798913730",
           "email": "saitejakoutharapu@gmail.com",
           "stage": "Appointment Booked",
@@ -6270,11 +6311,11 @@
         }
       ],
       "segmentations": {
-        "newLeads": 68,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 1,
         "closedLeads": 3,
-        "newLeadsToday": 68,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 1,
         "closedLeadsToday": 3,
@@ -6287,10 +6328,10 @@
       "notes_updated_today": 20,
       "tasks_added_today": 2,
       "general_conv_rate": 0,
-      "new_leads_today": 68,
+      "new_leads_today": 1,
       "referrals_today": 0,
-      "converted_today": 1,
-      "today_conv_rate": 1.4705882352941175,
+      "converted_today": 3,
+      "today_conv_rate": 300,
       "call_metrics": {
         "outboundCount": 27,
         "outboundAttended": 13,
@@ -7314,29 +7355,12 @@
         }
       ],
       "margin_opportunities_details": [],
-      "today_conversion_leads": [
-        {
-          "name": "Unknown",
-          "phone": "+447749130278",
-          "email": "cutelyndie@yahoo.com",
-          "stage": "Appointment Booked",
-          "date": "Jul 20 2026",
-          "agent": "Jasmine Taylor"
-        },
-        {
-          "name": "Unknown",
-          "phone": "+447871314361",
-          "email": "dareayanwale@gmail.com",
-          "stage": "Appointment Booked",
-          "date": "May 09 2026",
-          "agent": "Jasmine Taylor"
-        }
-      ],
+      "today_conversion_leads": [],
       "booked_leads_details": [],
       "closed_leads_details": [],
       "appt_booked_leads_details": [
         {
-          "name": "Unknown",
+          "name": "charity nyamuzuwe",
           "phone": "+447749130278",
           "email": "cutelyndie@yahoo.com",
           "stage": "Appointment Booked",
@@ -7344,7 +7368,7 @@
           "agent": "Jasmine Taylor"
         },
         {
-          "name": "Unknown",
+          "name": "dare ayanwale",
           "phone": "+447871314361",
           "email": "dareayanwale@gmail.com",
           "stage": "Appointment Booked",
@@ -7353,11 +7377,11 @@
         }
       ],
       "segmentations": {
-        "newLeads": 127,
+        "newLeads": 1,
         "bookedLeads": 0,
         "apptBookedLeads": 2,
         "closedLeads": 0,
-        "newLeadsToday": 127,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 2,
         "closedLeadsToday": 0,
@@ -7370,10 +7394,10 @@
       "notes_updated_today": 40,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 127,
+      "new_leads_today": 1,
       "referrals_today": 0,
-      "converted_today": 2,
-      "today_conv_rate": 1.574803149606299,
+      "converted_today": 0,
+      "today_conv_rate": 0,
       "call_metrics": {
         "outboundCount": 82,
         "outboundAttended": 53,
@@ -7709,11 +7733,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 26,
+        "newLeads": 2,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 26,
+        "newLeadsToday": 2,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -7726,7 +7750,7 @@
       "notes_updated_today": 0,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 26,
+      "new_leads_today": 2,
       "referrals_today": 0,
       "converted_today": 0,
       "today_conv_rate": 0,
@@ -7823,7 +7847,7 @@
       "margin_opportunities_details": [],
       "today_conversion_leads": [
         {
-          "name": "Unknown",
+          "name": "simi simi",
           "phone": "+447723648910",
           "email": "sirineparween@gmail.com",
           "stage": "Booked",
@@ -7833,7 +7857,7 @@
       ],
       "booked_leads_details": [
         {
-          "name": "Unknown",
+          "name": "simi simi",
           "phone": "+447723648910",
           "email": "sirineparween@gmail.com",
           "stage": "Booked",
@@ -7844,11 +7868,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 18,
+        "newLeads": 0,
         "bookedLeads": 1,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 18,
+        "newLeadsToday": 0,
         "bookedLeadsToday": 1,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -7861,10 +7885,10 @@
       "notes_updated_today": 2,
       "tasks_added_today": 0,
       "general_conv_rate": 6.25,
-      "new_leads_today": 18,
+      "new_leads_today": 0,
       "referrals_today": 0,
       "converted_today": 1,
-      "today_conv_rate": 5.555555555555555,
+      "today_conv_rate": 0,
       "call_metrics": {
         "outboundCount": 3,
         "outboundAttended": 3,
@@ -8373,7 +8397,7 @@
       "margin_opportunities_details": [],
       "today_conversion_leads": [
         {
-          "name": "Unknown",
+          "name": "syed muhammad bilal hassan",
           "phone": "+447835797782",
           "email": "bilalkazmi912@gmail.com",
           "stage": "Booked",
@@ -8383,7 +8407,7 @@
       ],
       "booked_leads_details": [
         {
-          "name": "Unknown",
+          "name": "syed muhammad bilal hassan",
           "phone": "+447835797782",
           "email": "bilalkazmi912@gmail.com",
           "stage": "Booked",
@@ -8394,11 +8418,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 51,
+        "newLeads": 0,
         "bookedLeads": 1,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 51,
+        "newLeadsToday": 0,
         "bookedLeadsToday": 1,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -8411,10 +8435,10 @@
       "notes_updated_today": 20,
       "tasks_added_today": 0,
       "general_conv_rate": 3.125,
-      "new_leads_today": 51,
+      "new_leads_today": 0,
       "referrals_today": 0,
       "converted_today": 1,
-      "today_conv_rate": 1.9607843137254901,
+      "today_conv_rate": 0,
       "call_metrics": {
         "outboundCount": 31,
         "outboundAttended": 20,
@@ -8573,7 +8597,7 @@
       "margin_opportunities_details": [],
       "today_conversion_leads": [
         {
-          "name": "Unknown",
+          "name": "ch.abdullah warraich",
           "phone": "+447440089179",
           "email": "warraichabdullah61@gmial.com",
           "stage": "Booked",
@@ -8583,7 +8607,7 @@
       ],
       "booked_leads_details": [
         {
-          "name": "Unknown",
+          "name": "ch.abdullah warraich",
           "phone": "+447440089179",
           "email": "warraichabdullah61@gmial.com",
           "stage": "Booked",
@@ -8594,11 +8618,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 8,
+        "newLeads": 1,
         "bookedLeads": 1,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 8,
+        "newLeadsToday": 1,
         "bookedLeadsToday": 1,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -8611,10 +8635,10 @@
       "notes_updated_today": 1,
       "tasks_added_today": 0,
       "general_conv_rate": 14.285714285714285,
-      "new_leads_today": 8,
+      "new_leads_today": 1,
       "referrals_today": 0,
       "converted_today": 1,
-      "today_conv_rate": 12.5,
+      "today_conv_rate": 100,
       "call_metrics": {
         "outboundCount": 7,
         "outboundAttended": 3,
@@ -8651,11 +8675,11 @@
       "closed_leads_details": [],
       "appt_booked_leads_details": [],
       "segmentations": {
-        "newLeads": 1,
+        "newLeads": 0,
         "bookedLeads": 0,
         "apptBookedLeads": 0,
         "closedLeads": 0,
-        "newLeadsToday": 1,
+        "newLeadsToday": 0,
         "bookedLeadsToday": 0,
         "apptBookedLeadsToday": 0,
         "closedLeadsToday": 0,
@@ -8668,7 +8692,7 @@
       "notes_updated_today": 0,
       "tasks_added_today": 0,
       "general_conv_rate": 0,
-      "new_leads_today": 1,
+      "new_leads_today": 0,
       "referrals_today": 0,
       "converted_today": 0,
       "today_conv_rate": 0,

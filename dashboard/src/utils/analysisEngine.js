@@ -7,7 +7,7 @@
 export function normalizeAgentName(name) {
   if (!name) return "";
   const clean = name.replace(/\s+/g, " ").trim().toLowerCase();
-  
+
   if (clean === "emily jone" || clean === "emily jones") return "Emily Jones";
   if (clean === "jessica jessie" || clean === "jessica jessy") return "Jessica Jessie";
   if (clean === "daniel evan" || clean === "daniel evans") return "Daniel Evans";
@@ -18,7 +18,7 @@ export function normalizeAgentName(name) {
   if (clean === "chris morgan") return "Chris Morgan";
   if (clean === "lisa evan" || clean === "lisa evans") return "Lisa Evans";
   if (clean === "jennie miller") return "Jennie Miller";
-  
+
   return name.replace(/\s+/g, " ").trim().split(" ")
     .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
@@ -52,7 +52,7 @@ export function toBST(dateStr, targetDateStr = "2026-07-17", timezone = "BST") {
       const hour = parseInt(parts.find(p => p.type === "hour").value, 10);
       const minute = parseInt(parts.find(p => p.type === "minute").value, 10);
       const second = parseInt(parts.find(p => p.type === "second").value, 10);
-      
+
       return new Date(Date.UTC(year, month, day, hour, minute, second));
     }
   }
@@ -267,7 +267,7 @@ export function processAgentData(
     if (!agent) return;
     initAgentSegment(agent);
 
-    const isReferral = [row["Referal"], row["Referral"], row["referal"], row["referral"]].some(val => 
+    const isReferral = [row["Referal"], row["Referral"], row["referal"], row["referral"]].some(val =>
       val && ["referal", "referral", "yes", "true"].includes(String(val).trim().toLowerCase())
     );
 
@@ -733,13 +733,13 @@ export function processAgentData(
     const eligibleBase = opportunitiesCount - seg.closedLeads - seg.apptBookedLeads;
     const generalConvRate = eligibleBase > 0 ? (seg.bookedLeads / eligibleBase) * 100 : 0.0;
 
-    // Table 2 Calculations (Today's Converted = Booked today + Appt Booked today)
-    const convertedToday = seg.bookedLeadsToday + seg.apptBookedLeadsToday;
+    // Table 2 Calculations (Today's Converted = Booked today + Closed today)
+    const convertedToday = seg.bookedLeadsToday + seg.closedLeadsToday;
     const todayConvRate = seg.newLeadsToday > 0 ? (convertedToday / seg.newLeadsToday) * 100 : 0.0;
 
     // Table 3 Call Metrics Calculations (for targetDateStr BST only)
     const callsToday = (agentCalls[agent] || []).filter((c) => isJuly17BST(new Date(c.timestamp), targetDateStr));
-    
+
     let outboundCount = 0;
     let outboundAttended = 0;
     let outboundMissed = 0;
@@ -792,10 +792,10 @@ export function processAgentData(
       }
       if (leadId) {
         interactedLeads.add(leadId);
-        const isConvertedStage = act.module === "OPPORTUNITY" && act.details && 
-          (act.details.includes('"pipelineStageName":"Booked"') || 
-           act.details.includes('"pipelineStageName":"Appointment Booked"') ||
-           act.details.includes('"status":"won"'));
+        const isConvertedStage = act.module === "OPPORTUNITY" && act.details &&
+          (act.details.includes('"pipelineStageName":"Booked"') ||
+            act.details.includes('"pipelineStageName":"Appointment Booked"') ||
+            act.details.includes('"status":"won"'));
         if (isConvertedStage) {
           interactedConversions.add(leadId);
         }
@@ -804,13 +804,6 @@ export function processAgentData(
 
     const interactedLeadsCount = interactedLeads.size;
     const interactedConversionsCount = interactedConversions.size;
-
-    // Override New Leads metrics to represent assigned opportunities + unique interacted contacts
-    seg.newLeads = opportunitiesCount + interactedLeadsCount;
-    seg.newLeadsToday = opportunitiesCount + interactedLeadsCount;
-
-    // Recalculate Table 2 conversion rate with the updated today's new leads count
-    const updatedTodayConvRate = seg.newLeadsToday > 0 ? (convertedToday / seg.newLeadsToday) * 100 : 0.0;
 
     results[agent] = {
       interacted_leads_today: interactedLeadsCount,
@@ -849,7 +842,7 @@ export function processAgentData(
       new_leads_today: seg.newLeadsToday,
       referrals_today: seg.referralsToday || 0,
       converted_today: convertedToday,
-      today_conv_rate: updatedTodayConvRate,
+      today_conv_rate: todayConvRate,
 
       // Call metrics stats (Table 3)
       call_metrics: {

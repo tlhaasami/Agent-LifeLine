@@ -16,6 +16,26 @@ import { parseCSV } from "@/utils/csvParser";
 import { processAgentData } from "@/utils/analysisEngine";
 import CustomDatePicker from "@/components/CustomDatePicker";
 
+const isNewLead = (lead, newLeadsList) => {
+  if (!Array.isArray(newLeadsList) || newLeadsList.length === 0) return false;
+
+  const leadPhone = (lead.phone || "").replace(/[^0-9+]/g, "").trim();
+  const leadEmail = (lead.email || "").trim().toLowerCase();
+  const leadName = (lead.name || "").trim().toLowerCase();
+
+  return newLeadsList.some((nl) => {
+    const nlPhone = (nl.phone || "").replace(/[^0-9+]/g, "").trim();
+    const nlEmail = (nl.email || "").trim().toLowerCase();
+    const nlName = (nl.name || nl.fullName || "").trim().toLowerCase();
+
+    if (leadPhone && nlPhone && leadPhone === nlPhone) return true;
+    if (leadEmail && nlEmail && leadEmail === nlEmail) return true;
+    if (leadName && nlName && leadName === nlName) return true;
+
+    return false;
+  });
+};
+
 export default function Home() {
   const [agentsList, setAgentsList] = useState([]);
   const [rawAnalysisData, setRawAnalysisData] = useState({ bstCallsList: [], bstUpdatesList: [] });
@@ -324,7 +344,7 @@ export default function Home() {
           throw new Error(`Failed to check backup status (${checkRes.status})`);
         }
         const checkData = await checkRes.json();
-        
+
         if (checkData.exists) {
           const data = checkData.data;
           console.log("Data received from backup API for date:", reportDate, data);
@@ -361,12 +381,13 @@ export default function Home() {
             }));
           }
 
+          const ghlMessages = normalizedRaw.ghl_outbound_messages || normalizedRaw.ghlMessages || [];
           let parsed = [];
-          
+
           // Build index for calls and audit logs by agent name
           const callsByAgent = {};
           const auditByAgent = {};
-          
+
           if (Array.isArray(data.calls)) {
             data.calls.forEach(c => {
               const agName = c.agent;
@@ -382,7 +403,7 @@ export default function Home() {
               }
             });
           }
-          
+
           if (Array.isArray(data.audit_logs)) {
             data.audit_logs.forEach(act => {
               const agName = act.agent;
@@ -446,10 +467,10 @@ export default function Home() {
                 }
                 if (leadId) {
                   interactedLeads.add(leadId);
-                  const isConvertedStage = act.module === "OPPORTUNITY" && act.details && 
-                    (act.details.includes('"pipelineStageName":"Booked"') || 
-                     act.details.includes('"pipelineStageName":"Appointment Booked"') ||
-                     act.details.includes('"status":"won"'));
+                  const isConvertedStage = act.module === "OPPORTUNITY" && act.details &&
+                    (act.details.includes('"pipelineStageName":"Booked"') ||
+                      act.details.includes('"pipelineStageName":"Appointment Booked"') ||
+                      act.details.includes('"status":"won"'));
                   if (isConvertedStage) {
                     interactedConversions.add(leadId);
                   }
@@ -460,6 +481,25 @@ export default function Home() {
                   interactedLeads.add(`name_${c.contact_name}`);
                 }
               });
+
+              // Add all messaged contacts to interactedLeads
+              const agentMessages = ghlMessages.filter(
+                (msg) => msg.agent && msg.agent.toLowerCase() === name.toLowerCase()
+              );
+              agentMessages.forEach((msg) => {
+                if (msg.contactName) {
+                  interactedLeads.add(msg.contactName.trim().toLowerCase());
+                }
+              });
+
+              const interactedLeadsCount = interactedLeads.size;
+              const generalConvRate = interactedLeadsCount > 0
+                ? ((seg.bookedLeadsToday || 0) / interactedLeadsCount) * 100
+                : 0.0;
+
+              const bookedNewLeads = (stats.booked_leads_details || []).filter(l => isNewLead(l, stats.new_leads_details || []));
+              const closedNewLeads = (stats.closed_leads_details || []).filter(l => isNewLead(l, stats.new_leads_details || []));
+              const todayConversionLeads = [...bookedNewLeads, ...closedNewLeads];
 
               return {
                 name,
@@ -476,13 +516,15 @@ export default function Home() {
                 details: stats,
                 new_leads_details: stats.new_leads_details || [],
                 margin_opportunities_details: stats.margin_opportunities_details || [],
-                today_conversion_leads: stats.today_conversion_leads || [],
+                today_conversion_leads: todayConversionLeads,
                 booked_leads_details: stats.booked_leads_details || [],
                 closed_leads_details: stats.closed_leads_details || [],
                 appt_booked_leads_details: stats.appt_booked_leads_details || [],
 
                 segmentations: {
                   ...seg,
+                  newLeads: stats.new_leads_details ? stats.new_leads_details.length : 0,
+                  newLeadsToday: stats.new_leads_details ? stats.new_leads_details.length : 0,
                   referrals: seg.referrals || 0,
                   referralsToday: seg.referralsToday || 0,
                 },
@@ -491,13 +533,15 @@ export default function Home() {
                 stage_contacted_today: stats.stage_contacted_today || 0,
                 notes_updated_today: stats.notes_updated_today || 0,
                 tasks_added_today: stats.tasks_added_today || 0,
-                interacted_leads_today: stats.interacted_leads_today || interactedLeads.size || 0,
+                interacted_leads_today: interactedLeadsCount,
                 interacted_conversions_today: stats.interacted_conversions_today || interactedConversions.size || 0,
-                general_conv_rate: stats.general_conv_rate || 0,
-                new_leads_today: stats.new_leads_today || 0,
+                general_conv_rate: generalConvRate,
+                new_leads_today: stats.new_leads_details ? stats.new_leads_details.length : 0,
                 referrals_today: stats.referrals_today || 0,
-                converted_today: stats.converted_today || 0,
-                today_conv_rate: stats.today_conv_rate || 0,
+                converted_today: todayConversionLeads.length,
+                today_conv_rate: (stats.new_leads_details ? stats.new_leads_details.length : 0) > 0
+                  ? (todayConversionLeads.length / (stats.new_leads_details ? stats.new_leads_details.length : 0)) * 100
+                  : 0.0,
                 call_metrics: callMetrics,
               };
             }).sort((a, b) => b.actions - a.actions);
@@ -545,12 +589,31 @@ export default function Home() {
                         interactedConversions.add(cName);
                       }
                     }
-                  } catch {}
+                  } catch { }
                 });
 
                 callsList.forEach((c) => {
                   if (c.contact_name) interactedLeads.add(c.contact_name);
                 });
+
+                // Add all messaged contacts to interactedLeads
+                const agentMessages = ghlMessages.filter(
+                  (msg) => msg.agent && msg.agent.toLowerCase() === name.toLowerCase()
+                );
+                agentMessages.forEach((msg) => {
+                  if (msg.contactName) {
+                    interactedLeads.add(msg.contactName.trim().toLowerCase());
+                  }
+                });
+
+                const interactedLeadsCount = interactedLeads.size;
+                const generalConvRate = interactedLeadsCount > 0
+                  ? ((seg.bookedLeadsToday || 0) / interactedLeadsCount) * 100
+                  : 0.0;
+
+                const bookedNewLeads = (stats.booked_leads_details || []).filter(l => isNewLead(l, stats.new_leads_details || []));
+                const closedNewLeads = (stats.closed_leads_details || []).filter(l => isNewLead(l, stats.new_leads_details || []));
+                const todayConversionLeads = [...bookedNewLeads, ...closedNewLeads];
 
                 return {
                   name,
@@ -567,13 +630,15 @@ export default function Home() {
                   details: stats,
                   new_leads_details: stats.new_leads_details || [],
                   margin_opportunities_details: stats.margin_opportunities_details || [],
-                  today_conversion_leads: stats.today_conversion_leads || [],
+                  today_conversion_leads: todayConversionLeads,
                   booked_leads_details: stats.booked_leads_details || [],
                   closed_leads_details: stats.closed_leads_details || [],
                   appt_booked_leads_details: stats.appt_booked_leads_details || [],
 
                   segmentations: {
                     ...seg,
+                    newLeads: stats.new_leads_details ? stats.new_leads_details.length : 0,
+                    newLeadsToday: stats.new_leads_details ? stats.new_leads_details.length : 0,
                     referrals: seg.referrals || 0,
                     referralsToday: seg.referralsToday || 0,
                   },
@@ -582,13 +647,15 @@ export default function Home() {
                   stage_contacted_today: stats.stage_contacted_today || 0,
                   notes_updated_today: stats.notes_updated_today || 0,
                   tasks_added_today: stats.tasks_added_today || 0,
-                  interacted_leads_today: stats.interacted_leads_today || interactedLeads.size || 0,
+                  interacted_leads_today: interactedLeadsCount,
                   interacted_conversions_today: stats.interacted_conversions_today || interactedConversions.size || 0,
-                  general_conv_rate: stats.general_conv_rate || 0,
-                  new_leads_today: stats.new_leads_today || 0,
+                  general_conv_rate: generalConvRate,
+                  new_leads_today: stats.new_leads_details ? stats.new_leads_details.length : 0,
                   referrals_today: stats.referrals_today || 0,
-                  converted_today: stats.converted_today || 0,
-                  today_conv_rate: stats.today_conv_rate || 0,
+                  converted_today: todayConversionLeads.length,
+                  today_conv_rate: (stats.new_leads_details ? stats.new_leads_details.length : 0) > 0
+                    ? (todayConversionLeads.length / (stats.new_leads_details ? stats.new_leads_details.length : 0)) * 100
+                    : 0.0,
                   call_metrics: callMetrics,
                 };
               })

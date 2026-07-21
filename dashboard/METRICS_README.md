@@ -30,36 +30,34 @@ The **Overview** dashboard presents aggregated team-wide metrics for the selecte
 
 ---
 
-## 2. Activity & Metrics Section (The 19 Cards Grid)
+## 2. Activity & Metrics Section (The 18 Cards Grid)
 
-When selecting `"All Agents"` or a specific agent, the dashboard calculates nineteen metric KPIs:
+When selecting `"All Agents"` or a specific agent, the dashboard calculates eighteen metric KPIs:
 
 ### Engagement & Activity KPIs
-1.  **Today Interacted Leads**: Unique counts of contact IDs/opportunity IDs that appear in CRM audit logs today. Phone-call-only logs are excluded.
-2.  **Interacted Conversions**: Count of unique leads updated today that reached a converted stage (Booked, Appointment Booked, Won) today.
-3.  **Total Conversations**: Count of unique phone number profiles the agent exchanged outbound GHL text messages with today.
-4.  **Total Calls Placed**: Sum of outbound and inbound call logs registered today.
-5.  **Missed Inbound Calls**: Inbound calls with status other than "Answered".
-6.  **Notes Added**: Audit logs of type `NOTE` with action `CREATED`.
-7.  **Tasks Added**: Audit logs of type `TASK` with action `CREATED`.
-8.  **Total Actions**: Total count of all log actions (Note creation, Task additions, Opportunity stage changes) performed today.
+1.  **Today Interacted Leads**: Unique count of all contacts messaged, called, or modified/updated in CRM audit logs today.
+2.  **Total Conversations**: Count of unique phone number profiles the agent exchanged outbound GHL text messages with today.
+3.  **Total Calls Placed**: Sum of outbound and inbound call logs registered today.
+4.  **Missed Inbound Calls**: Inbound calls with status other than "Answered".
+5.  **Notes Added**: Audit logs of type `NOTE` with action `CREATED`.
+6.  **Tasks Added**: Audit logs of type `TASK` with action `CREATED`.
+7.  **Total Actions**: Total count of all log actions (Note creation, Task additions, Opportunity stage changes) performed today.
 
 ### CRM Stages & Conversions
-9.  **Interested Stage**: Number of opportunities moved to the "Interested" pipeline stage.
-10. **Contacted Stage**: Number of opportunities moved to the "Contacted" pipeline stage.
-11. **Today's New Leads**: Calculated as the sum of assigned opportunities plus unique contacts interacted with.
-12. **Today's Referrals**: Opportunities marked as a referral.
-13. **Booked Leads**: All booked leads rows for the agent in the uploaded Booked Leads sheet.
-14. **Closed Leads**: All closed leads rows for the agent in the uploaded Closed Leads sheet.
-15. **Appointment Booked**: All appointment booked leads rows for the agent in the uploaded Appointment Booked sheet.
-16. **General Conversion Rate (%)**: 
-    *   *Formula:* $\left( \frac{\text{Booked Leads}}{\text{Assigned Opportunities} - \text{Closed Leads} - \text{Appt Booked Leads}} \right) \times 100$
-17. **Today's Conversion Rate (%)**:
-    *   *Formula:* $\left( \frac{\text{Today's Converted (Booked + Appt Booked)}}{\text{Today's New Leads}} \right) \times 100$
+8.  **Interested Stage**: Number of opportunities moved to the "Interested" pipeline stage.
+9.  **Contacted Stage**: Number of opportunities moved to the "Contacted" pipeline stage.
+10. **Today's New Leads**: The number of new leads assigned to the agent extracted directly from the uploaded New Leads CSV file.
+11. **Today's Referrals**: Opportunities marked as a referral.
+12. **Booked Leads**: All booked leads rows for the agent in the uploaded Booked Leads sheet.
+13. **Closed Leads**: All closed leads rows for the agent in the uploaded Closed Leads sheet.
+14. **Appointment Booked**: All appointment booked leads rows for the agent in the uploaded Appointment Booked sheet.
+15. **General Conversion Rate (%)**: 
+    *   *Formula:* $\left( \frac{\text{Booked Leads Today}}{\text{Total Interacted Leads Today}} \right) \times 100$
+16. **Booked Lead Rate (%)**:
+    *   *Formula:* $\left( \frac{\text{Booked Leads Today}}{\text{Today's New Leads}} \right) \times 100$
+17. **Closed Lead Rate (%)**:
+    *   *Formula:* $\left( \frac{\text{Closed Leads Today}}{\text{Today's New Leads}} \right) \times 100$
 18. **Margin Contributed Today (£)**: Total revenue value of opportunities won or credited on the selected date.
-
-### Workday & Time Metrics
-19. **Workday Session Span**: The duration from the agent's first activity timestamp of the day to their last activity timestamp of the day.
 
 ---
 

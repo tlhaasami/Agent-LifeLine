@@ -72,7 +72,8 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
       interacted_leads_today: 0,
       interacted_conversions_today: 0,
       general_conv_rate: 0,
-      today_conv_rate: 0
+      today_conv_rate: 0,
+      converted_today: 0
     };
 
     let totalSpan = 0;
@@ -139,6 +140,7 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
       aggregated.tasks_added_today += (a.tasks_added_today || 0);
       aggregated.interacted_leads_today += (a.interacted_leads_today || 0);
       aggregated.interacted_conversions_today += (a.interacted_conversions_today || 0);
+      aggregated.converted_today += (a.converted_today || 0);
     });
 
     aggregated.span = agentsWithSpan > 0 ? totalSpan / agentsWithSpan : 0;
@@ -152,9 +154,8 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
       aggregated.call_metrics.inboundAvgDuration = aggregated.call_metrics.inboundMinutes / aggregated.call_metrics.inboundAttended;
     }
 
-    aggregated.general_conv_rate = aggregated.interacted_leads_today > 0 ? (aggregated.interacted_conversions_today / aggregated.interacted_leads_today) * 100 : 0;
-    const convertedToday = aggregated.segmentations.bookedLeadsToday + aggregated.segmentations.apptBookedLeadsToday;
-    aggregated.today_conv_rate = aggregated.segmentations.newLeadsToday > 0 ? (convertedToday / aggregated.segmentations.newLeadsToday) * 100 : 0;
+    aggregated.general_conv_rate = aggregated.interacted_leads_today > 0 ? (aggregated.segmentations.bookedLeadsToday / aggregated.interacted_leads_today) * 100 : 0;
+    aggregated.today_conv_rate = aggregated.segmentations.newLeadsToday > 0 ? (aggregated.converted_today / aggregated.segmentations.newLeadsToday) * 100 : 0;
 
     selectedAgent = aggregated;
   } else {
@@ -176,7 +177,7 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
 
   const totalCalls = (callM.outboundCount || 0) + (callM.inboundCount || 0);
   const missedInbound = callM.inboundMissed || 0;
-  const todayConverted = (seg.bookedLeadsToday || 0) + (seg.apptBookedLeadsToday || 0);
+  const todayConverted = selectedAgent.converted_today || 0;
 
   // Calculate conversations from GHL outbound messages in the backup
   const allMessages = rawAnalysisData.ghl_outbound_messages || rawAnalysisData.ghlMessages || [];
@@ -188,7 +189,10 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
 
   // Formatting rates
   const generalRate = parseFloat(selectedAgent.general_conv_rate || 0).toFixed(1);
-  const todayRate = parseFloat(selectedAgent.today_conv_rate || 0).toFixed(1);
+  const bookedRateVal = seg.newLeadsToday > 0 ? (seg.bookedLeadsToday / seg.newLeadsToday) * 100 : 0;
+  const closedRateVal = seg.newLeadsToday > 0 ? (seg.closedLeadsToday / seg.newLeadsToday) * 100 : 0;
+  const bookedRate = parseFloat(bookedRateVal).toFixed(1);
+  const closedRate = parseFloat(closedRateVal).toFixed(1);
 
   // Cards definitions: key, title, value, unit/sub, tooltip description
   const cards = [
@@ -227,13 +231,7 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
       sub: "Meeting slots secured",
       tooltip: "Total number of appointments successfully scheduled for leads today.",
     },
-    {
-      key: "todayConverted",
-      title: "Today's Converted",
-      value: todayConverted,
-      sub: "Booked + Appt Booked",
-      tooltip: "Sum of Booked and Appointment Booked leads today.",
-    },
+
     {
       key: "interactedLeads",
       title: "Today Interacted Leads",
@@ -241,13 +239,7 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
       sub: "Engaged contact profiles",
       tooltip: "Total unique leads (contacts or opportunities) whom the agent interacted with or updated today.",
     },
-    {
-      key: "interactedConversions",
-      title: "Interacted Conversions",
-      value: selectedAgent.interacted_conversions_today || 0,
-      sub: "Conversion from interactions",
-      tooltip: "Unique leads interacted with today that successfully reached a converted status (Booked, Appointment Booked, Won) today.",
-    },
+
     {
       key: "totalConversations",
       title: "Total Conversations",
@@ -312,11 +304,18 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
       tooltip: "Lifetime lead conversion percentage (Booked Leads divided by eligible lead base).",
     },
     {
-      key: "todayRate",
-      title: "Today's Conv. Rate",
-      value: `${todayRate}%`,
-      sub: "Daily conversion speed",
-      tooltip: "Today's immediate conversion speed (Today's Converted divided by New Leads Today).",
+      key: "bookedRate",
+      title: "Booked Lead Rate (%)",
+      value: `${bookedRate}%`,
+      sub: "Booked / New Leads",
+      tooltip: "Percentage of new leads that got booked today.",
+    },
+    {
+      key: "closedRate",
+      title: "Closed Lead Rate (%)",
+      value: `${closedRate}%`,
+      sub: "Closed / New Leads",
+      tooltip: "Percentage of new leads that got closed today.",
     },
     {
       key: "totalActions",
@@ -704,30 +703,30 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
             };
           });
       case "generalRate":
-      case "todayRate":
-        if (Array.isArray(selectedAgent.today_conversion_leads) && selectedAgent.today_conversion_leads.length > 0) {
-          return selectedAgent.today_conversion_leads.map((lead) => ({
+      case "bookedRate":
+        if (Array.isArray(selectedAgent.booked_leads_details) && selectedAgent.booked_leads_details.length > 0) {
+          return selectedAgent.booked_leads_details.map((lead) => ({
             time: lead.date ? formatTime(lead.date) : "00:00 BST",
             agent: lead.agent || selectedAgentName,
             contact: lead.name,
-            category: "Conversion Lead",
-            action: lead.stage || "Converted",
+            category: "Booked Lead Details",
+            action: lead.stage || "Booked",
             details: `Email: ${lead.email || "-"} | Phone: ${lead.phone || "-"}`
           }));
         }
-        return actions
-          .filter((act) => act.module === "OPPORTUNITY" && act.details && (act.details.includes('"pipelineStageName":"Booked"') || act.details.includes('"pipelineStageName":"Appointment Booked"') || act.details.includes('"status":"won"')))
-          .map((act) => {
-            const { contactName, cleanDetails, actionStr } = parseActionDetails(act);
-            return {
-              time: formatTime(act.timestamp),
-              agent: selectedAgentName,
-              contact: contactName,
-              category: "Converted Lead Details",
-              action: actionStr,
-              details: cleanDetails
-            };
-          });
+        return [];
+      case "closedRate":
+        if (Array.isArray(selectedAgent.closed_leads_details) && selectedAgent.closed_leads_details.length > 0) {
+          return selectedAgent.closed_leads_details.map((lead) => ({
+            time: lead.date ? formatTime(lead.date) : "00:00 BST",
+            agent: lead.agent || selectedAgentName,
+            contact: lead.name,
+            category: "Closed Lead Details",
+            action: lead.stage || "Closed",
+            details: `Email: ${lead.email || "-"} | Phone: ${lead.phone || "-"}`
+          }));
+        }
+        return [];
       case "totalActions":
       default:
         return actions.map((act) => {
