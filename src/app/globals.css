@@ -2777,3 +2777,17 @@ select option {
     margin-top: 1rem;
     width: 100%;
 }
+
+/* AI Assistant Responsive Tweaks */
+@media (max-width: 480px) {
+    .ai-send-btn-text {
+        display: none !important;
+    }
+    .ai-send-btn-icon {
+        margin-right: 0 !important;
+    }
+    .ai-assistant-form {
+        padding: 0.75rem 1rem !important;
+        gap: 0.5rem !important;
+    }
+}

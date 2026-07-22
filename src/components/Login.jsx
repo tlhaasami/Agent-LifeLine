@@ -9,7 +9,7 @@ export default function Login({ onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [videoPoster, setVideoPoster] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  
+
   const videoRef = useRef(null);
 
   const handleVideoLoaded = (e) => {
@@ -226,15 +226,18 @@ export default function Login({ onSuccess }) {
       <div className="login-video-col">
         <video
           ref={videoRef}
-          src="/logo-animation.mp4"
+          src="/logo-animation.mp4#t=1.5"
           poster={videoPoster || undefined}
           onLoadedData={handleVideoLoaded}
           autoPlay
           muted
-          loop
           playsInline
           preload="auto"
           className="login-bg-video"
+          onEnded={(e) => {
+            e.target.currentTime = 1.2;
+            e.target.play().catch(() => { });
+          }}
         />
       </div>
 

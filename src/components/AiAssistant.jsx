@@ -491,15 +491,17 @@ export default function AiAssistant({
             )}
 
             {/* Form Input Footer */}
-            <form onSubmit={handleSend} style={{ padding: "1.25rem 1.5rem", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <form onSubmit={handleSend} className="ai-assistant-form" style={{ padding: "1.25rem 1.5rem", borderTop: "1px solid rgba(255,255,255,0.04)", display: "flex", gap: "0.75rem", alignItems: "center" }}>
               <input
                 type="text"
                 placeholder={isLoading ? "AI is processing..." : "Ask your operations query..."}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 disabled={isLoading}
+                className="ai-assistant-input"
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   background: "var(--card-bg)",
                   border: "1px solid var(--card-border)",
                   borderRadius: "8px",
@@ -528,7 +530,8 @@ export default function AiAssistant({
                   opacity: (isLoading || !inputText.trim()) ? 0.5 : 1
                 }}
               >
-                <i className="fa-solid fa-paper-plane" style={{ marginRight: "0.35rem" }}></i> Send
+                <i className="fa-solid fa-paper-plane ai-send-btn-icon" style={{ marginRight: "0.35rem" }}></i>
+                <span className="ai-send-btn-text">Send</span>
               </button>
             </form>
           </>

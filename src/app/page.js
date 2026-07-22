@@ -93,7 +93,7 @@ export default function Home() {
     setIsLoggedIn(localStorage.getItem("isLoggedIn") === "true");
     setUserRole(localStorage.getItem("userRole") || "admin");
     setShowHero(localStorage.getItem("showHero") !== "false");
-    
+
     // Load and apply saved theme preference on mount
     const savedTheme = localStorage.getItem("theme") || "dark";
     setTheme(savedTheme);
@@ -878,7 +878,10 @@ export default function Home() {
             muted
             loop
             playsInline
-            preload="none"
+            preload="auto"
+            onLoadedMetadata={(e) => {
+              e.target.currentTime = 1;
+            }}
           />
           <div className="hero-video-overlay" />
         </div>
@@ -1058,7 +1061,7 @@ export default function Home() {
               <p style={{ color: "var(--text-secondary)", maxWidth: "500px", margin: "0 auto", fontSize: "0.92rem", lineHeight: "1.5" }}>
                 No database backup has been uploaded for <strong>{reportDate}</strong>. Go to the Onboarding Portal to upload daily CRM logs and save them to GitHub.
               </p>
-               {userRole === "special" ? (
+              {userRole === "special" ? (
                 <Link href="/upload-data" className="btn-primary-small" style={{ textDecoration: "none", marginTop: "0.5rem", padding: "0.65rem 1.8rem" }}>
                   <i className="fa-solid fa-cloud-arrow-up"></i> Go to Onboarding Portal
                 </Link>
