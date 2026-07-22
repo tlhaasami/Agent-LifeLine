@@ -1,0 +1,23 @@
+name: Sync to QuickHolidays
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  git-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Push to QuickHolidays
+        env:
+          TARGET_TOKEN: ${{ secrets.QUICKHOLIDAYS_PAT }}
+        run: |
+          # Configure remote target with secret token and push main branch
+          git remote add target "https://quickholidays:${TARGET_TOKEN}@github.com/quickholidays/Agent-LifeLine.git"
+          git push target main --force
