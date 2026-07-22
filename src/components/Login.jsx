@@ -16,14 +16,14 @@ export default function Login({ onSuccess }) {
     const video = e.target;
     try {
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 360;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL("image/jpeg");
       setVideoPoster(dataUrl);
     } catch (err) {
-      console.warn("Could not capture first frame client-side:", err);
+      // Ignore cross-origin canvas errors if any
     }
   };
 
@@ -40,14 +40,18 @@ export default function Login({ onSuccess }) {
       });
 
       const data = await res.json();
+
       if (!res.ok) {
         throw new Error(data.error || "Login failed");
       }
 
-      // Save session role and notify parent
+      // Store auth session
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("userRole", data.role);
-      onSuccess(data.role);
+
+      if (onSuccess) {
+        onSuccess(data.role);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -56,76 +60,58 @@ export default function Login({ onSuccess }) {
   };
 
   return (
-    <div className="login-root" style={{
-      display: "flex",
-      minHeight: "100vh",
-      width: "100vw",
-      backgroundColor: "#0d0f12",
-      color: "#f3f4f6",
-      fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
-      overflow: "hidden"
-    }}>
+    <div className="login-root">
       {/* Google Font Outfit Loader */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
       `}} />
 
-      {/* Left Column: Login Form (40% width, Premium Dark Theme) */}
-      <div className="login-form-col" style={{
-        flex: "0 0 40%",
-        width: "40%",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        padding: "4rem",
-        background: "linear-gradient(135deg, #11141a 0%, #0d0f12 100%)",
-        borderRight: "1px solid rgba(255, 255, 255, 0.05)",
-        boxShadow: "10px 0 30px rgba(0, 0, 0, 0.3)",
-        zIndex: 10
-      }}>
-        <div style={{ width: "100%", maxWidth: "380px", margin: "0 auto" }}>
+      {/* Left Column: Login Form */}
+      <div className="login-form-col">
+        <div className="login-form-inner">
           {/* Logo / Header */}
-          <div style={{ display: "flex", alignItems: "center", gap: "1.2rem", marginBottom: "3rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1.2rem", marginBottom: "2rem" }}>
             <img src="/logo.png" alt="LifeLine Logo" style={{ height: "60px", width: "auto" }} />
-            <h1 style={{ 
-              margin: 0, 
-              fontSize: "2.4rem", 
-              fontWeight: 900, 
-              letterSpacing: "-0.04em", 
-              color: "white",
+            <h1 style={{
+              margin: 0,
+              fontSize: "2.4rem",
+              fontWeight: 900,
+              letterSpacing: "-0.04em",
+              color: "#111827",
               fontFamily: "'Outfit', sans-serif"
             }}>
               LifeLine
             </h1>
           </div>
 
-          <h2 style={{ 
-            fontSize: "2.1rem", 
-            fontWeight: 800, 
-            marginBottom: "0.6rem", 
-            color: "white", 
+          <h2 style={{
+            fontSize: "2rem",
+            fontWeight: 800,
+            marginBottom: "0.5rem",
+            color: "#111827",
             letterSpacing: "-0.02em",
-            fontFamily: "'Outfit', sans-serif" 
+            fontFamily: "'Outfit', sans-serif"
           }}>
             Welcome Back
           </h2>
-          <p style={{ color: "#9ca3af", fontSize: "0.95rem", marginBottom: "2.5rem", lineHeight: "1.5" }}>
-            Enter your administrator credentials to access the tracking dashboard.
+          <p style={{ color: "#4b5563", fontSize: "0.92rem", marginBottom: "2rem", lineHeight: "1.5", fontWeight: 500 }}>
+            Enter your credentials to access the tracking dashboard.
           </p>
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.4rem" }}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.3rem" }}>
             {error && (
               <div style={{
                 padding: "0.85rem 1.1rem",
                 background: "rgba(239, 68, 68, 0.1)",
-                border: "1px solid rgba(239, 68, 68, 0.2)",
+                border: "1px solid rgba(239, 68, 68, 0.25)",
                 borderRadius: "10px",
-                color: "#f87171",
+                color: "#dc2626",
                 fontSize: "0.88rem",
                 display: "flex",
                 alignItems: "center",
                 gap: "0.6rem",
-                boxShadow: "0 2px 4px rgba(220, 38, 38, 0.02)"
+                boxShadow: "0 2px 4px rgba(220, 38, 38, 0.05)"
               }}>
                 <i className="fa-solid fa-circle-exclamation"></i>
                 <span>{error}</span>
@@ -133,7 +119,7 @@ export default function Login({ onSuccess }) {
             )}
 
             <div>
-              <label htmlFor="username" style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, marginBottom: "0.55rem", color: "#9ca3af" }}>
+              <label htmlFor="username" style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, marginBottom: "0.55rem", color: "#374151" }}>
                 Username
               </label>
               <input
@@ -147,19 +133,19 @@ export default function Login({ onSuccess }) {
                   width: "100%",
                   padding: "0.85rem 1.1rem",
                   borderRadius: "10px",
-                  background: "#161b22",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  color: "white",
+                  background: "#ffffff",
+                  border: "1px solid #d1d5db",
+                  color: "#111827",
                   fontSize: "0.95rem",
                   outline: "none",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                   transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}
               />
             </div>
 
             <div>
-              <label htmlFor="password" style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, marginBottom: "0.55rem", color: "#9ca3af" }}>
+              <label htmlFor="password" style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, marginBottom: "0.55rem", color: "#374151" }}>
                 Password
               </label>
               <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
@@ -174,12 +160,12 @@ export default function Login({ onSuccess }) {
                     width: "100%",
                     padding: "0.85rem 3rem 0.85rem 1.1rem",
                     borderRadius: "10px",
-                    background: "#161b22",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "white",
+                    background: "#ffffff",
+                    border: "1px solid #d1d5db",
+                    color: "#111827",
                     fontSize: "0.95rem",
                     outline: "none",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                     transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)"
                   }}
                 />
@@ -191,14 +177,15 @@ export default function Login({ onSuccess }) {
                     right: "1rem",
                     background: "transparent",
                     border: "none",
-                    color: "#9ca3af",
+                    color: "#4b5563",
                     cursor: "pointer",
-                    fontSize: "1.1rem",
+                    fontSize: "1.15rem",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     padding: 0,
-                    outline: "none"
+                    outline: "none",
+                    zIndex: 10
                   }}
                 >
                   <i className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
@@ -243,57 +230,80 @@ export default function Login({ onSuccess }) {
             </button>
           </form>
 
-          <footer style={{ marginTop: "4.5rem", fontSize: "0.78rem", color: "#4b5563", textAlign: "center" }}>
+          <footer style={{ marginTop: "2.5rem", fontSize: "0.78rem", color: "#6b7280", fontWeight: 500 }}>
             LifeLine Systems &copy; {new Date().getFullYear()}. Secure administrator access.
           </footer>
         </div>
       </div>
 
-      {/* Right Column: Logo Animation Video (60% width, no text overlays) */}
-      <div className="login-video-col" style={{
-        flex: "0 0 60%",
-        width: "60%",
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#000",
-        overflow: "hidden"
-      }}>
-        {/* Background Animation Video scaled up for prominence */}
-        <div style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center"
-        }}>
-          <video
-            ref={videoRef}
-            src="/logo-animation.mp4"
-            poster={videoPoster || undefined}
-            onLoadedData={handleVideoLoaded}
-            autoPlay
-            muted
-            playsInline
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-              transform: "scale(1.35)", // Scale up to make the logo and name extremely prominent
-              filter: "contrast(1.08) brightness(1.08)", // Slight enhancement filter
-              transformOrigin: "center center"
-            }}
-          />
-        </div>
+      {/* Right Column: Logo Animation Video */}
+      <div className="login-video-col">
+        <video
+          ref={videoRef}
+          src="/logo-animation.mp4"
+          poster={videoPoster || undefined}
+          onLoadedData={handleVideoLoaded}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          className="login-bg-video"
+        />
       </div>
 
-      {/* Input Focus & Animated Button Styles */}
+      {/* Responsive Styles */}
       <style jsx global>{`
+        .login-root {
+          display: flex;
+          min-height: 100vh;
+          width: 100vw;
+          background-color: #ffffff;
+          color: #111827;
+          font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+          overflow: hidden;
+        }
+
+        .login-form-col {
+          flex: 0 0 45%;
+          width: 45%;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          padding: 3.5rem 2.5rem;
+          background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+          border-right: 1px solid rgba(0, 0, 0, 0.08);
+          z-index: 10;
+          box-shadow: 10px 0 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .login-form-inner {
+          width: 100%;
+          max-width: 380px;
+        }
+
+        .login-video-col {
+          flex: 0 0 55%;
+          width: 55%;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: #ffffff;
+          overflow: hidden;
+        }
+
+        .login-bg-video {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
         input:focus {
           border-color: #d15c2e !important;
           box-shadow: 0 0 0 3px rgba(209, 92, 46, 0.15) !important;
-          background-color: #1c212a !important;
+          background-color: #ffffff !important;
         }
         
         /* Premium Micro-Animated Sign In Button */
@@ -340,35 +350,46 @@ export default function Login({ onSuccess }) {
           box-shadow: 0 4px 10px rgba(209, 92, 46, 0.3) !important;
         }
 
-        /* Mobile Responsiveness for Login Screen */
+        /* Mobile Layout (< 900px): Light Glass Card over background video */
         @media (max-width: 900px) {
           .login-root {
-            flex-direction: column-reverse !important;
-            min-height: 100vh !important;
-            height: auto !important;
-            overflow-y: auto !important;
+            position: relative !important;
+            justify-content: center !important;
+            align-items: center !important;
+            padding: 1.5rem !important;
+            background-color: #ffffff !important;
           }
-          .login-form-col {
-            flex: 1 0 auto !important;
-            width: 100% !important;
-            padding: 2.5rem 1.5rem !important;
-            border-right: none !important;
-            border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-            justify-content: flex-start !important;
-          }
-          .login-video-col {
-            flex: 0 0 200px !important;
-            width: 100% !important;
-            min-height: 180px !important;
-          }
-        }
 
-        @media (max-width: 500px) {
-          .login-form-col {
-            padding: 2rem 1.25rem !important;
-          }
           .login-video-col {
-            flex: 0 0 160px !important;
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 0 !important;
+            background-color: #ffffff !important;
+          }
+
+          .login-form-col {
+            flex: none !important;
+            width: 100% !important;
+            max-width: 440px !important;
+            padding: 2.5rem 1.8rem !important;
+            background: rgba(255, 255, 255, 0.65) !important;
+            backdrop-filter: blur(14px) !important;
+            -webkit-backdrop-filter: blur(14px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.6) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+            margin: auto !important;
+            z-index: 10 !important;
+          }
+
+          .login-form-inner p, .login-form-inner h2, .login-form-inner footer {
+            text-align: center !important;
+          }
+
+          .login-form-inner div:first-child {
+            justify-content: center !important;
           }
         }
       `}</style>

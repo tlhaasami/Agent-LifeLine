@@ -69,6 +69,46 @@ export default function CustomDatePicker({ value, onChange }) {
     setIsOpen(false);
   };
 
+  // Dynamic positioning style calculation to keep popover within screen bounds
+  const getDropdownStyle = () => {
+    if (typeof window === "undefined" || !dropdownRef.current) {
+      return { position: "absolute", top: "105%", right: 0, width: "280px", zIndex: 9999 };
+    }
+
+    const rect = dropdownRef.current.getBoundingClientRect();
+    const screenWidth = window.innerWidth;
+    const isMobile = screenWidth <= 600;
+
+    if (isMobile) {
+      return {
+        position: "fixed",
+        top: `${Math.min(rect.bottom + 8, window.innerHeight - 340)}px`,
+        left: `${Math.max(12, (screenWidth - 280) / 2)}px`,
+        width: "280px",
+        zIndex: 99999
+      };
+    }
+
+    // If opening towards left would cut off (< 10px from left edge), open towards right
+    if (rect.right - 280 < 10) {
+      return {
+        position: "absolute",
+        top: "105%",
+        left: 0,
+        width: "280px",
+        zIndex: 9999
+      };
+    }
+
+    return {
+      position: "absolute",
+      top: "105%",
+      right: 0,
+      width: "280px",
+      zIndex: 9999
+    };
+  };
+
   // Generate calendar days grid (42 days)
   const getCalendarDays = () => {
     const days = [];
@@ -142,15 +182,11 @@ export default function CustomDatePicker({ value, onChange }) {
       {isOpen && (
         <div 
           style={{
-            position: "absolute",
-            top: "105%",
-            right: 0,
-            zIndex: 9999,
-            width: "280px",
+            ...getDropdownStyle(),
             background: "var(--card-bg)",
             border: "1px solid var(--card-border)",
             borderRadius: "12px",
-            boxShadow: "var(--shadow)",
+            boxShadow: "0 12px 30px rgba(0, 0, 0, 0.4)",
             padding: "1rem",
             display: "flex",
             flexDirection: "column",
@@ -194,7 +230,6 @@ export default function CustomDatePicker({ value, onChange }) {
           {/* Days Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px" }}>
             {calendarDays.map((item, index) => {
-              // Determine status of this cell
               const cellDateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(item.day).padStart(2, "0")}`;
               const isSelected = item.isCurrent && value === cellDateStr;
               
@@ -218,13 +253,9 @@ export default function CustomDatePicker({ value, onChange }) {
                     fontWeight: isSelected || isTodayCell ? 700 : 500,
                     cursor: "pointer",
                     transition: "all 0.15s ease",
-                    
-                    // Selected highlight (Solid color)
                     background: isSelected 
                       ? "var(--primary)" 
-                      : isTodayCell 
-                        ? "transparent" 
-                        : "transparent",
+                      : "transparent",
                     color: isSelected 
                       ? "#ffffff" 
                       : item.isCurrent 

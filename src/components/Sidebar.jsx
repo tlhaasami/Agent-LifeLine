@@ -10,7 +10,12 @@ export default function Sidebar({
   onToggleCollapse,
   reportDate,
   onDateChange,
-  availableDates
+  availableDates,
+  theme,
+  toggleTheme,
+  handleLogout,
+  userRole,
+  CustomDatePicker
 }) {
   const menuItems = [
     { id: "overview", label: "Overview", icon: "fa-cubes" },
@@ -48,6 +53,35 @@ export default function Sidebar({
         ))}
       </nav>
 
+      {/* Mobile Controls Section: Date Picker, Theme Toggle, Logout */}
+      <div className="mobile-sidebar-controls">
+        <div style={{ width: "100%", marginBottom: "0.5rem" }}>
+          {CustomDatePicker && (
+            <CustomDatePicker value={reportDate} onChange={onDateChange} />
+          )}
+        </div>
+
+        {userRole === "special" && (
+          <Link
+            href="/upload-data"
+            className="mobile-sidebar-action-btn"
+            style={{ textDecoration: "none", backgroundColor: "rgba(209, 92, 46, 0.15)", color: "#e26939" }}
+          >
+            <i className="fa-solid fa-cloud-arrow-up"></i>
+            <span>Onboarding Portal</span>
+          </Link>
+        )}
+
+        <button className="mobile-sidebar-action-btn" onClick={toggleTheme}>
+          <i className={`fa-solid ${theme === "dark" ? "fa-sun" : "fa-moon"}`}></i>
+          <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+        </button>
+
+        <button className="mobile-sidebar-action-btn logout-btn" onClick={handleLogout} style={{ color: "#e26939" }}>
+          <i className="fa-solid fa-right-from-bracket"></i>
+          <span>Logout</span>
+        </button>
+      </div>
     </aside>
   );
 }

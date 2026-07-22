@@ -137,12 +137,8 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
   useEffect(() => {
     const updateWidth = () => {
       if (!scrollContainerRef.current) return;
-      const containerW = scrollContainerRef.current.clientWidth;
-      if (hideNames) {
-        setCanvasWidth(containerW);
-      } else {
-        setCanvasWidth(Math.max(CANVAS_MIN_WIDTH, containerW));
-      }
+      const containerW = scrollContainerRef.current ? scrollContainerRef.current.clientWidth : CANVAS_MIN_WIDTH;
+      setCanvasWidth(Math.max(CANVAS_MIN_WIDTH, containerW));
     };
     updateWidth();
     const ro = new ResizeObserver(updateWidth);
@@ -900,7 +896,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
           id="timeline-canvas-container"
           className="timeline-chart-panel"
           onScroll={handleChartScroll}
-          style={{ flex: 1, overflowX: hideNames ? "hidden" : "auto" }}
+          style={{ flex: 1, overflowX: "auto" }}
         >
           <canvas
             ref={canvasRef}

@@ -946,6 +946,11 @@ export default function Home() {
         reportDate={reportDate}
         onDateChange={setReportDate}
         availableDates={availableDates}
+        theme={theme}
+        toggleTheme={toggleTheme}
+        handleLogout={handleLogout}
+        userRole={userRole}
+        CustomDatePicker={CustomDatePicker}
       />
 
       {/* Main Content Area */}

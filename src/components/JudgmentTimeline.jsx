@@ -123,7 +123,7 @@ export default function JudgmentTimeline({ agent, startHour, endHour, reportDate
 
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
-    const displayWidth = containerRef.current.clientWidth;
+    const displayWidth = Math.max(1100, containerRef.current ? containerRef.current.clientWidth : 1100);
     const displayHeight = 180;
 
     canvas.width = displayWidth * dpr;
@@ -526,7 +526,7 @@ export default function JudgmentTimeline({ agent, startHour, endHour, reportDate
 
   return (
     <div className="timeline-container-outer" ref={containerRef}>
-      <div className="timeline-container" id="judgment-canvas-container">
+      <div className="timeline-container" id="judgment-canvas-container" style={{ overflowX: "auto", width: "100%" }}>
         <canvas ref={canvasRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} />
       </div>
       {renderTooltip()}
