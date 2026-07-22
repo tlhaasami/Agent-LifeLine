@@ -34,7 +34,7 @@ ${JSON.stringify(contextData, null, 2)}
 Critical Routing Instructions:
 1. If the user's query is completely unrelated to operations, agents, call logs, CRM metrics, or dashboard tasks, reply exactly starting with prefix "[OUT_OF_CONTEXT]" and explain why the question is out of context.
 2. If the user's query asks for data, metrics, integration rows, or logs that are missing or cannot be generated from the context above (for example: email campaign stats, logs outside today's scope, or fields that are not present in the columns), reply exactly starting with prefix "[UNRESOLVED_DATA]" and then explain what metrics or database integrations are missing.
-3. Otherwise, answer the query accurately based on today's statistics. Present tables, summaries, and lists using standard Markdown. Keep responses concise and visually structured.`;
+3. Otherwise, answer the query accurately based on today's statistics. Present tables, summaries, and lists using standard Markdown. Write a brief response unless the user explicitly asks for detailed breakdowns or specific detailing. Keep responses clean, concise, and visually structured.`;
 
     // Map conversation history to Gemini content structure
     const contents = messages.map((m) => ({
@@ -53,9 +53,12 @@ Critical Routing Instructions:
     let result = null;
     let replyText = "";
     let lastError = null;
+    const enableLogs = process.env.NEXT_PUBLIC_ENABLE_CONSOLE_LOGS === "true";
 
     for (const modelName of modelsToTry) {
-      console.log(`[Gemini API] Attempting generation with model: ${modelName}`);
+      if (enableLogs) {
+        console.log(`[Gemini API] Attempting generation with model: ${modelName}`);
+      }
       try {
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
@@ -71,7 +74,7 @@ Critical Routing Instructions:
               contents: contents,
               generationConfig: {
                 temperature: 0.2,
-                maxOutputTokens: 2048
+                maxOutputTokens: 8192
               }
             })
           }
@@ -85,12 +88,19 @@ Critical Routing Instructions:
         const data = await response.json();
         replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (replyText) {
-          console.log(`[Gemini API] Success using model: ${modelName}`);
+          if (enableLogs) {
+            console.log(`[Gemini API] Success using model: ${modelName}`);
+            console.log("\n[Gemini API] Response:\n------------------------------------");
+            console.log(replyText);
+            console.log("------------------------------------\n");
+          }
           result = data;
           break;
         }
       } catch (e) {
-        console.warn(`[Gemini API] Model ${modelName} failed:`, e.message);
+        if (enableLogs) {
+          console.warn(`[Gemini API] Model ${modelName} failed:`, e.message);
+        }
         lastError = e;
       }
     }

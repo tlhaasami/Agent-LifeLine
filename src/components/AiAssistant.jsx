@@ -82,6 +82,21 @@ export default function AiAssistant({
     }
   };
 
+  const handleResolveQuery = async (query, timestamp) => {
+    try {
+      const res = await fetch("/api/unresolved", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, timestamp })
+      });
+      if (res.ok) {
+        fetchUnresolvedQueries();
+      }
+    } catch (e) {
+      console.error("Failed to resolve user query:", e);
+    }
+  };
+
   const handleSuggestClick = (suggestion) => {
     if (isLocked || isLoading) return;
     setInputText(suggestion);
@@ -240,7 +255,6 @@ export default function AiAssistant({
         finalContent = rawResponse.replace("[UNRESOLVED_DATA]", "").trim();
       }
 
-      console.log("AI Operations Assistant Response:\n", finalContent);
       setMessages(prev => [...prev, { role: "assistant", content: finalContent }]);
 
       if (wasOutOfContext) {
@@ -290,9 +304,36 @@ export default function AiAssistant({
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", maxHeight: "110px", overflowY: "auto", paddingRight: "0.5rem" }}>
             {unresolvedList.map((q, idx) => (
-              <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", padding: "0.3rem 0.5rem", borderRadius: "4px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+              <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.75rem", padding: "0.4rem 0.6rem", borderRadius: "6px", background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
                 <span style={{ color: "var(--text-primary)", fontStyle: "italic" }}>"{q.query}"</span>
-                <span style={{ color: "var(--text-secondary)", fontSize: "0.7rem" }}>{new Date(q.timestamp).toLocaleTimeString()}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  <span style={{ color: "var(--text-secondary)", fontSize: "0.7rem" }}>{new Date(q.timestamp).toLocaleTimeString()}</span>
+                  <button
+                    onClick={() => handleResolveQuery(q.query, q.timestamp)}
+                    style={{
+                      background: "rgba(34, 197, 94, 0.08)",
+                      border: "1px solid rgba(34, 197, 94, 0.2)",
+                      color: "#22c55e",
+                      padding: "0.15rem 0.4rem",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "0.68rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.2rem",
+                      fontWeight: 600,
+                      transition: "all 0.2s"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(34, 197, 94, 0.18)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(34, 197, 94, 0.08)";
+                    }}
+                  >
+                    <i className="fa-solid fa-check"></i> Resolve
+                  </button>
+                </div>
               </div>
             ))}
           </div>
