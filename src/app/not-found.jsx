@@ -3,17 +3,18 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { 
-  FileText, 
-  MessageSquare, 
-  TrendingUp, 
-  PhoneCall, 
-  Award, 
-  CheckCircle, 
-  Calendar, 
-  User, 
-  Clock, 
-  Activity, 
+import {
+
+  FileText,
+  MessageSquare,
+  TrendingUp,
+  PhoneCall,
+  Award,
+  CheckCircle,
+  Calendar,
+  User,
+  Clock,
+  Activity,
   Database,
   Home,
   Paperclip,
@@ -27,7 +28,7 @@ import {
 const FloatingElement = ({ children, targetX, targetY, initialRotate, animStep, isMobile }) => {
   const getAnimateState = () => {
     const scaleFactor = isMobile ? 0.32 : 1.0;
-    
+
     if (animStep === "text-only") {
       return {
         opacity: 0,
@@ -38,7 +39,7 @@ const FloatingElement = ({ children, targetX, targetY, initialRotate, animStep, 
         rotate: 0
       };
     }
-    
+
     if (animStep === "stacked") {
       return {
         opacity: 0.85,
@@ -49,7 +50,7 @@ const FloatingElement = ({ children, targetX, targetY, initialRotate, animStep, 
         rotate: initialRotate * 2
       };
     }
-    
+
     return {
       opacity: 1,
       scale: isMobile ? 0.65 : 1.0,
@@ -64,8 +65,8 @@ const FloatingElement = ({ children, targetX, targetY, initialRotate, animStep, 
     <motion.div
       initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
       animate={getAnimateState()}
-      whileHover={{ 
-        scale: 1.12, 
+      whileHover={{
+        scale: 1.12,
         zIndex: 50
       }}
       transition={{
@@ -74,7 +75,7 @@ const FloatingElement = ({ children, targetX, targetY, initialRotate, animStep, 
         damping: 11,
         delay: 0,
       }}
-      style={{ 
+      style={{
         position: "absolute",
         cursor: "pointer",
         userSelect: "none",
@@ -85,10 +86,10 @@ const FloatingElement = ({ children, targetX, targetY, initialRotate, animStep, 
     >
       <motion.div
         animate={animStep === "scattered" ? { y: [0, -6, 0], rotate: [-0.5, 0.5, -0.5] } : {}}
-        transition={{ 
-          repeat: Infinity, 
-          duration: 4.5 + Math.random() * 3, 
-          ease: "easeInOut" 
+        transition={{
+          repeat: Infinity,
+          duration: 4.5 + Math.random() * 3,
+          ease: "easeInOut"
         }}
         style={{
           background: "transparent",
@@ -112,7 +113,7 @@ export default function NotFound() {
       setIsMobile(window.innerWidth <= 768);
     };
     window.addEventListener("resize", handleResize);
-    
+
     // Trigger sequence stages
     const timer1 = setTimeout(() => setAnimStep("stacked"), 400);
     const timer2 = setTimeout(() => setAnimStep("scattered"), 1100);
@@ -559,10 +560,10 @@ export default function NotFound() {
       }}>
         {elements.map((el, idx) => {
           return (
-            <FloatingElement 
-              key={idx} 
-              targetX={el.targetX} 
-              targetY={el.targetY} 
+            <FloatingElement
+              key={idx}
+              targetX={el.targetX}
+              targetY={el.targetY}
               initialRotate={el.initialRotate}
               animStep={animStep}
               isMobile={isMobile}
@@ -602,7 +603,7 @@ export default function NotFound() {
 
         {/* Central Pill Button Wrapper (Click Link Zone) */}
         <Link href="/" style={{ textDecoration: "none" }}>
-          <div 
+          <div
             style={{
               position: "relative",
               display: "flex",
@@ -619,10 +620,10 @@ export default function NotFound() {
                 initial={{ opacity: 0, x: -30, scale: 0.6 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 transition={{ type: "spring", stiffness: 140, damping: 10 }}
-                style={{ 
-                  width: isMobile ? "32px" : "44px", 
-                  height: isMobile ? "44px" : "44px", 
-                  flexShrink: 0 
+                style={{
+                  width: isMobile ? "32px" : "44px",
+                  height: isMobile ? "44px" : "44px",
+                  flexShrink: 0
                 }}
               >
                 <svg viewBox="0 0 100 100" fill="none" style={{ width: "100%", height: "100%" }}>
