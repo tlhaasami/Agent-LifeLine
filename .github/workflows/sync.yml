@@ -19,6 +19,8 @@ jobs:
         env:
           TARGET_TOKEN: ${{ secrets.QUICKHOLIDAYS_PAT }}
         run: |
+          # Remove any leftover authorization headers from checkout to prevent 403 blocks
+          git config --local --unset-all "http.https://github.com/.extraheader" || true
           # Configure remote target with secret token and push main branch
           git remote add target "https://quickholidays:${TARGET_TOKEN}@github.com/quickholidays/Agent-LifeLine.git"
           git push target main --force
