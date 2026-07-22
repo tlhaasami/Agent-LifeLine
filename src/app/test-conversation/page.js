@@ -748,7 +748,7 @@ export default function TestConversationPage() {
               <button
                 onClick={() => setAlertMessage("")}
                 className="btn-primary"
-                style={{ padding: "0.6rem 1.2rem", borderRadius: "8px", border: "none", backgroundColor: "var(--primary)", color: "#000", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
+                style={{ padding: "0.6rem 1.2rem", borderRadius: "8px", border: "none", backgroundColor: "var(--primary)", color: "var(--bg-color)", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
               >
                 OK
               </button>

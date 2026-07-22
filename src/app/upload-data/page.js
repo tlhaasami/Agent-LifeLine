@@ -857,7 +857,10 @@ export default function UploadDataPage() {
       setProcessingState(prev => {
         if (!prev) return null;
         const updatedSteps = [...prev.steps];
-        updatedSteps[7].status = "done";
+        const saveStepIdx = updatedSteps.length - 1;
+        if (updatedSteps[saveStepIdx]) {
+          updatedSteps[saveStepIdx].status = "done";
+        }
         return {
           ...prev,
           steps: updatedSteps,
@@ -879,7 +882,10 @@ export default function UploadDataPage() {
       setProcessingState(prev => {
         if (!prev) return null;
         const updatedSteps = [...prev.steps];
-        updatedSteps[7].status = "error";
+        const saveStepIdx = updatedSteps.length - 1;
+        if (updatedSteps[saveStepIdx]) {
+          updatedSteps[saveStepIdx].status = "error";
+        }
         return {
           ...prev,
           steps: updatedSteps,
@@ -1749,7 +1755,7 @@ export default function UploadDataPage() {
                   fontSize: "0.85rem",
                   border: "none",
                   backgroundColor: "var(--primary)",
-                  color: "#000",
+                  color: "var(--bg-color)",
                   transition: "all 0.2s"
                 }}
               >
