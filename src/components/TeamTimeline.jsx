@@ -4,16 +4,11 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 
 // Fixed canvas width — the horizontal scroll container will handle overflow
 const CANVAS_MIN_WIDTH = 1200;
-// Max visible height before vertical scroll kicks in
-const MAX_VISIBLE_HEIGHT = 520;
 
 export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, reportDate = "2026-07-17", showGhlMessages = true, ghlMessages = [], hideNames = false, theme = "dark" }) {
   const canvasRef = useRef(null);
-  const namesCanvasRef = useRef(null);
   const scrollContainerRef = useRef(null);
-  const namesScrollRef = useRef(null);
   const containerRef = useRef(null);
-  const isSyncingScroll = useRef(false);
 
   const [startHour, setStartHour] = useState(9);
   const [endHour, setEndHour] = useState(20);
@@ -23,13 +18,11 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
   const [endDropOpen, setEndDropOpen] = useState(false);
 
   // Layout constants
-  const timelineLeftMargin = 0;   // Names are on separate canvas now
+  const timelineLeftMargin = hideNames ? 0 : 160;
   const timelineRightMargin = 40;
   const timelineRowHeight = 40;
   const timelineTopMargin = 30;
   const timelineBottomMargin = 20;
-
-  const namesColumnWidth = 160;
 
   const colors = {
     active: "#71a758",
@@ -146,99 +139,6 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
     return () => ro.disconnect();
   }, [hideNames]);
 
-  // ── Sync vertical scroll between names panel and chart ────────────────────
-  const handleChartScroll = useCallback(() => {
-    if (isSyncingScroll.current) return;
-    if (!scrollContainerRef.current || !namesScrollRef.current) return;
-    isSyncingScroll.current = true;
-    namesScrollRef.current.scrollTop = scrollContainerRef.current.scrollTop;
-    isSyncingScroll.current = false;
-  }, []);
-
-  const handleNamesScroll = useCallback(() => {
-    if (isSyncingScroll.current) return;
-    if (!scrollContainerRef.current || !namesScrollRef.current) return;
-    isSyncingScroll.current = true;
-    scrollContainerRef.current.scrollTop = namesScrollRef.current.scrollTop;
-    isSyncingScroll.current = false;
-  }, []);
-
-  // ── Draw the sticky names column ──────────────────────────────────────────
-  useEffect(() => {
-    const namesCanvas = namesCanvasRef.current;
-    if (!namesCanvas) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const displayHeight =
-      timelineTopMargin +
-      timelineBottomMargin +
-      Math.max(1, agents.length) * timelineRowHeight;
-
-    namesCanvas.width = namesColumnWidth * dpr;
-    namesCanvas.height = displayHeight * dpr;
-    namesCanvas.style.width = `${namesColumnWidth}px`;
-    namesCanvas.style.height = `${displayHeight}px`;
-
-    const ctx = namesCanvas.getContext("2d");
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, namesColumnWidth, displayHeight);
-
-    const isDark =
-      document.body.classList.contains("dark-mode") ||
-      !document.body.classList.contains("light-mode");
-
-    // Background matching card bg
-    ctx.fillStyle = isDark ? "#0a0a0a" : "#ffffff";
-    ctx.fillRect(0, 0, namesColumnWidth, displayHeight);
-
-    // Separator line on the right edge
-    ctx.strokeStyle = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(namesColumnWidth - 0.5, 0);
-    ctx.lineTo(namesColumnWidth - 0.5, displayHeight);
-    ctx.stroke();
-
-    // Row dividers + agent names
-    agents.forEach((agent, idx) => {
-      const yCenter =
-        timelineTopMargin + idx * timelineRowHeight + timelineRowHeight / 2;
-      const rowTop = timelineTopMargin + idx * timelineRowHeight;
-      const isSelectedRow = selectedAgent && selectedAgent.name === agent.name;
-      const isHoveredRow =
-        hoveredItem && hoveredItem.agent && hoveredItem.agent.name === agent.name;
-
-      // Row highlight
-      if (isSelectedRow) {
-        ctx.fillStyle = isDark
-          ? "rgba(79, 70, 229, 0.15)"
-          : "rgba(67, 56, 202, 0.08)";
-        ctx.fillRect(0, rowTop, namesColumnWidth, timelineRowHeight);
-      } else if (isHoveredRow) {
-        ctx.fillStyle = isDark
-          ? "rgba(255, 255, 255, 0.03)"
-          : "rgba(0, 0, 0, 0.02)";
-        ctx.fillRect(0, rowTop, namesColumnWidth, timelineRowHeight);
-      }
-
-      // Row divider
-      ctx.strokeStyle = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, rowTop + timelineRowHeight);
-      ctx.lineTo(namesColumnWidth, rowTop + timelineRowHeight);
-      ctx.stroke();
-
-      // Name text
-      ctx.fillStyle = isSelectedRow
-        ? isDark ? "#8b5cf6" : "#4338ca"
-        : isDark ? "#f8fafc" : "#0f172a";
-      ctx.font = isSelectedRow ? "700 12px Outfit" : "600 12px Outfit";
-      ctx.textAlign = "left";
-      ctx.fillText(agent.name, 15, yCenter + 4);
-    });
-  }, [agents, selectedAgent, hoveredItem, theme]);
-
   // ── Draw the main timeline canvas ─────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -265,8 +165,8 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
     ctx.clearRect(0, 0, displayWidth, displayHeight);
 
     if (agents.length === 0) {
-      ctx.fillStyle = isDark ? "#94a3b8" : "#475569";
-      ctx.font = "14px Outfit";
+      ctx.fillStyle = isDark ? "#ffffff" : "#0f172a";
+      ctx.font = "600 13px Outfit";
       ctx.textAlign = "center";
       ctx.fillText(
         "No agents match the search criteria",
@@ -320,7 +220,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
         }
         
         // Prevent label clipping at canvas boundaries by shifting text alignment
-        if (xVal < 25) {
+        if (xVal < timelineLeftMargin + 25) {
           ctx.textAlign = "left";
           ctx.fillText(label, xVal + 4, timelineTopMargin - 15);
         } else if (xVal > displayWidth - 25) {
@@ -369,9 +269,17 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
       ctx.lineTo(displayWidth, rowTop + timelineRowHeight);
       ctx.stroke();
 
+      // Agent Name (drawn on the left side of the canvas)
+      if (!hideNames) {
+        ctx.fillStyle = isSelectedRow
+          ? isDark ? "#fb923c" : "#d15c2e"
+          : isDark ? "#faefea" : "#2a1209";
+        ctx.font = isSelectedRow ? "700 12px Outfit" : "600 12px Outfit";
+        ctx.textAlign = "left";
+        ctx.fillText(agent.name, 15, yCenter + 4);
+      }
+
       const details = agent.details || agent;
-
-
 
       // ── GHL Action / Operation markers ──────────────────────────────────────────
       const agentActions = details.actions_list || [];
@@ -391,58 +299,57 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
           else if (act.module === "CONTACT") actColor = "#71a758";
 
           ctx.fillStyle = actColor;
-          ctx.fillRect(xVal - 1.5, yCenter - 10, 3, 20); // Each bar is one operation (width 3px, height 20px)
+          ctx.beginPath();
+          ctx.arc(xVal, yCenter, isHoveredAction ? 6 : 4, 0, 2 * Math.PI);
+          ctx.fill();
 
           if (isHoveredAction) {
-            ctx.strokeStyle = "white";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(xVal - 1.5, yCenter - 10, 3, 20);
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
           }
         }
       });
 
-      // ── Call markers (Outbound Calls Only) ──────────────────────────────────────────
-      const agentCalls = agent.calls || [];
-      agentCalls.forEach((c) => {
-        if (c.direction !== "outbound") return; // Show only outbound calls
-        const callTime = new Date(c.timestamp);
+      // ── Phone Call markers ──────────────────────────────────────────────────────
+      const agentCalls = details.calls || [];
+      agentCalls.forEach((call) => {
+        const callTime = new Date(call.timestamp);
         if (callTime >= getMinTime() && callTime <= getMaxTime()) {
-          const durationSecs = parseDurationToSeconds(c.duration);
-          const callStartX = getX(callTime, displayWidth);
-          const callEndX = getX(callTime.getTime() + durationSecs * 1000, displayWidth);
-          const barWidth = Math.max(6, callEndX - callStartX);
-          
+          const xVal = getX(callTime, displayWidth);
           const isHoveredCall =
             hoveredItem &&
             hoveredItem.type === "call" &&
-            hoveredItem.data === c &&
+            hoveredItem.data === call &&
             hoveredItem.agent.name === agent.name;
 
-          let callColor = "#db8324";
-          if (c.status !== "Answered") {
-            callColor = "#ef4444";
-          }
+          const durationSec = parseDurationToSeconds(call.duration);
+          const isAnswered = durationSec > 0 && call.status?.toLowerCase() !== "no-answer";
 
-          ctx.fillStyle = callColor;
+          ctx.fillStyle = isAnswered ? "#71a758" : "#ef4444";
           ctx.beginPath();
-          if (ctx.roundRect) {
-            ctx.roundRect(callStartX, yCenter - 7, barWidth, 14, 3);
-          } else {
-            ctx.rect(callStartX, yCenter - 7, barWidth, 14);
-          }
+
+          // Render calls as triangles
+          const tSize = isHoveredCall ? 7 : 5;
+          ctx.moveTo(xVal, yCenter - tSize);
+          ctx.lineTo(xVal - tSize, yCenter + tSize);
+          ctx.lineTo(xVal + tSize, yCenter + tSize);
+          ctx.closePath();
           ctx.fill();
 
-          ctx.strokeStyle = isHoveredCall ? "white" : "rgba(255,255,255,0.6)";
-          ctx.lineWidth = isHoveredCall ? 1 : 0.5;
-          ctx.stroke();
+          if (isHoveredCall) {
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
         }
       });
 
-      // ── GHL Outbound Messages ──────────────────────────────────────────
-      if (showGhlMessages && ghlMessages) {
-        const agentMessages = ghlMessages.filter(m => m.agent === agent.name);
+      // ── GHL Message markers (if enabled) ────────────────────────────────────────
+      if (showGhlMessages) {
+        const agentMessages = ghlMessages.filter((m) => m.agent_name === agent.name);
         agentMessages.forEach((msg) => {
-          const msgTime = new Date(msg.time);
+          const msgTime = new Date(msg.timestamp);
           if (msgTime >= getMinTime() && msgTime <= getMaxTime()) {
             const xVal = getX(msgTime, displayWidth);
             const isHoveredMsg =
@@ -451,250 +358,209 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
               hoveredItem.data === msg &&
               hoveredItem.agent.name === agent.name;
 
-            ctx.fillStyle = "#38bdf8"; // Sky blue circle
+            ctx.fillStyle = "#38bdf8";
             ctx.beginPath();
-            ctx.arc(xVal, yCenter, 5, 0, 2 * Math.PI);
-            ctx.fill();
 
-            ctx.strokeStyle = isHoveredMsg ? "white" : "rgba(0, 0, 0, 0.4)";
-            ctx.lineWidth = isHoveredMsg ? 1.5 : 0.5;
-            ctx.stroke();
+            // Render messages as square markers
+            const sz = isHoveredMsg ? 5 : 3.5;
+            ctx.fillRect(xVal - sz, yCenter - sz, sz * 2, sz * 2);
+
+            if (isHoveredMsg) {
+              ctx.strokeStyle = "#ffffff";
+              ctx.lineWidth = 1.5;
+              ctx.strokeRect(xVal - sz, yCenter - sz, sz * 2, sz * 2);
+            }
           }
         });
       }
     });
-  }, [agents, startHour, endHour, hoveredItem, selectedAgent, canvasWidth, showGhlMessages, ghlMessages, reportDate, theme]);
+  }, [agents, selectedAgent, hoveredItem, canvasWidth, startHour, endHour, reportDate, showGhlMessages, ghlMessages, hideNames, theme]);
 
-  // ── Mouse interaction ─────────────────────────────────────────────────────
+  // ── Hover/Mouse tracking ──────────────────────────────────────────────────
   const handleMouseMove = (e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    // Account for vertical scroll inside the chart pane (if any)
-    const scrollTop = scrollContainerRef.current
-      ? scrollContainerRef.current.scrollTop
-      : 0;
-    const y = e.clientY - rect.top + scrollTop;
+    const y = e.clientY - rect.top;
 
-    if (
-      y < timelineTopMargin ||
-      y > timelineTopMargin + agents.length * timelineRowHeight
-    ) {
-      handleMouseLeave();
-      return;
-    }
+    const minTime = getMinTime().getTime();
+    const maxTime = getMaxTime().getTime();
 
-    const idx = Math.floor((y - timelineTopMargin) / timelineRowHeight);
-    const agent = agents[idx];
-    if (!agent) {
-      handleMouseLeave();
-      return;
-    }
+    let found = null;
 
-    const displayWidth = canvasWidth;
-    const yCenter =
-      timelineTopMargin + idx * timelineRowHeight + timelineRowHeight / 2;
-    const details = agent.details || agent;
-    let hovered = null;
+    agents.forEach((agent, idx) => {
+      const yCenter =
+        timelineTopMargin + idx * timelineRowHeight + timelineRowHeight / 2;
+      const details = agent.details || agent;
 
-    // 1. Calls (Outbound Only) - Check call blocks first to prioritize hover over sessions
-    const calls = agent.calls || [];
-    for (const c of calls) {
-      if (c.direction !== "outbound") continue; // Check only outbound calls
-      const callTime = new Date(c.timestamp);
-      if (callTime >= getMinTime() && callTime <= getMaxTime()) {
-        const durationSecs = parseDurationToSeconds(c.duration);
-        const callStartX = getX(callTime, canvasWidth);
-        const callEndX = getX(callTime.getTime() + durationSecs * 1000, canvasWidth);
-        const barWidth = Math.max(6, callEndX - callStartX);
-
-        if (x >= callStartX && x <= callStartX + barWidth && Math.abs(y - yCenter) <= 7) {
-          hovered = { agent, type: "call", data: c, x: e.clientX, y: e.clientY };
-          break;
-        }
-      }
-    }
-
-    // 2. GHL Actions (Operations) - Check operation markers first to prioritize hover
-    if (!hovered) {
-      const actions = details.actions_list || [];
-      for (const act of actions) {
+      // 1. Check GHL Actions
+      const agentActions = details.actions_list || [];
+      agentActions.forEach((act) => {
         const actTime = new Date(act.timestamp);
         if (actTime >= getMinTime() && actTime <= getMaxTime()) {
           const xVal = getX(actTime, canvasWidth);
-          if (Math.abs(x - xVal) <= 5 && Math.abs(y - yCenter) <= 10) {
-            hovered = { agent, type: "action", data: act, x: e.clientX, y: e.clientY };
-            break;
+          const dist = Math.hypot(x - xVal, y - yCenter);
+          if (dist < 8) {
+            found = {
+              type: "action",
+              agent,
+              data: act,
+              x: e.clientX,
+              y: e.clientY,
+            };
           }
         }
-      }
-    }
+      });
 
-    // Check GHL Outbound Messages
-    if (!hovered && showGhlMessages && ghlMessages) {
-      const agentMessages = ghlMessages.filter(m => m.agent === agent.name);
-      for (const msg of agentMessages) {
-        const msgTime = new Date(msg.time);
-        if (msgTime >= getMinTime() && msgTime <= getMaxTime()) {
-          const xVal = getX(msgTime, canvasWidth);
-          if (Math.abs(x - xVal) <= 6 && Math.abs(y - yCenter) <= 6) {
-            hovered = { agent, type: "message", data: msg, x: e.clientX, y: e.clientY };
-            break;
+      // 2. Check Calls
+      const agentCalls = details.calls || [];
+      agentCalls.forEach((call) => {
+        const callTime = new Date(call.timestamp);
+        if (callTime >= getMinTime() && callTime <= getMaxTime()) {
+          const xVal = getX(callTime, canvasWidth);
+          const dist = Math.hypot(x - xVal, y - yCenter);
+          if (dist < 8) {
+            found = {
+              type: "call",
+              agent,
+              data: call,
+              x: e.clientX,
+              y: e.clientY,
+            };
           }
         }
+      });
+
+      // 3. Check GHL Messages
+      if (showGhlMessages) {
+        const agentMessages = ghlMessages.filter((m) => m.agent_name === agent.name);
+        agentMessages.forEach((msg) => {
+          const msgTime = new Date(msg.timestamp);
+          if (msgTime >= getMinTime() && msgTime <= getMaxTime()) {
+            const xVal = getX(msgTime, canvasWidth);
+            const dist = Math.hypot(x - xVal, y - yCenter);
+            if (dist < 8) {
+              found = {
+                type: "message",
+                agent,
+                data: msg,
+                x: e.clientX,
+                y: e.clientY,
+              };
+            }
+          }
+        });
       }
-    }
 
-    if (!hovered) {
-      hovered = { agent, type: "row", data: null, x: e.clientX, y: e.clientY };
-    }
+      // 4. Check row hover fallback if no marker
+      if (!found) {
+        const rowTop = timelineTopMargin + idx * timelineRowHeight;
+        if (y >= rowTop && y < rowTop + timelineRowHeight && x >= 0 && x < canvasWidth) {
+          found = {
+            type: "row",
+            agent,
+            x: e.clientX,
+            y: e.clientY,
+          };
+        }
+      }
+    });
 
-    setHoveredItem(hovered);
+    setHoveredItem(found);
   };
 
-  const handleMouseLeave = () => setHoveredItem(null);
+  const handleMouseLeave = () => {
+    setHoveredItem(null);
+  };
 
   const handleClick = () => {
-    if (hoveredItem && hoveredItem.agent) {
+    if (hoveredItem && hoveredItem.agent && onSelectAgent) {
       onSelectAgent(hoveredItem.agent);
     }
   };
 
-  // ── Tooltip ───────────────────────────────────────────────────────────────
   const renderTooltip = () => {
     if (!hoveredItem || hoveredItem.type === "row") return null;
 
-    const { agent, type, data, x, y } = hoveredItem;
+    const { type, data } = hoveredItem;
+    const isDark =
+      document.body.classList.contains("dark-mode") ||
+      !document.body.classList.contains("light-mode");
 
-    let left = x + 15;
-    let top = y + 15;
-    if (typeof window !== "undefined") {
-      if (left + 260 > window.innerWidth) {
-        left = x - 275;
-      }
-      if (top + 200 > window.innerHeight) {
-        top = y - 215;
-      }
-      left = Math.max(10, left);
-      top = Math.max(10, top);
-    }
+    const tooltipStyle = {
+      position: "fixed",
+      left: `${hoveredItem.x + 15}px`,
+      top: `${hoveredItem.y + 10}px`,
+      background: isDark ? "rgba(15, 23, 42, 0.95)" : "rgba(255, 255, 255, 0.95)",
+      border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)",
+      color: isDark ? "#f1f5f9" : "#0f172a",
+      padding: "0.6rem 0.8rem",
+      borderRadius: "8px",
+      fontSize: "0.78rem",
+      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
+      zIndex: 99999,
+      pointerEvents: "none",
+      minWidth: "160px",
+      backdropFilter: "blur(4px)",
+    };
 
-    if (type === "call") {
-      const callTime = new Date(data.timestamp);
-      const callTimeStr =
-        callTime.getUTCHours().toString().padStart(2, "00") +
-        ":" +
-        callTime.getUTCMinutes().toString().padStart(2, "00");
+    if (type === "action") {
+      const actTimeStr = formatIsoToTime(data.timestamp);
       return (
-        <div
-          className="tooltip"
-          style={{ left: `${left}px`, top: `${top}px`, display: "flex", opacity: 1 }}
-        >
-          <div className="tooltip-title">{agent.name}</div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">State:</span>
-            <span className="tooltip-value" style={{ color: "#fb923c" }}>Phone Call Event</span>
+        <div style={tooltipStyle}>
+          <div style={{ fontWeight: 800, color: "var(--primary)", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.25rem", marginBottom: "0.4rem" }}>
+            GHL Update ({data.module})
           </div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">Direction:</span>
-            <span className="tooltip-value" style={{ textTransform: "capitalize" }}>{data.direction}</span>
+          <div>{getActionSummary(data) || `Updated GHL records`}</div>
+          <div style={{ marginTop: "0.3rem", fontSize: "0.72rem", opacity: 0.8 }}>
+            Time: {actTimeStr} BST
           </div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">Status:</span>
-            <span className="tooltip-value">{data.status}</span>
-          </div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">Time:</span>
-            <span className="tooltip-value">{callTimeStr} BST</span>
-          </div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">Duration:</span>
-            <span className="tooltip-value">{data.duration}</span>
-          </div>
-          {data.contact_name && (
-            <div className="tooltip-row">
-              <span className="tooltip-label">Contact:</span>
-              <span className="tooltip-value">{data.contact_name}</span>
-            </div>
-          )}
         </div>
       );
     }
 
-    if (type === "action") {
-      const actTime = new Date(data.timestamp);
-      const actTimeStr =
-        actTime.getUTCHours().toString().padStart(2, "00") +
-        ":" +
-        actTime.getUTCMinutes().toString().padStart(2, "00");
-      
-      let moduleColor = "#db8324";
-      if (data.module === "NOTE") moduleColor = "#db8324";
-      else if (data.module === "OPPORTUNITY") moduleColor = "#a74a25";
-      else if (data.module === "CONTACT") moduleColor = "#71a758";
-
-      const summary = getActionSummary(data);
+    if (type === "call") {
+      const callTimeStr = formatIsoToTime(data.timestamp);
+      const isAnswered =
+        parseDurationToSeconds(data.duration) > 0 &&
+        data.status?.toLowerCase() !== "no-answer";
 
       return (
-        <div
-          className="tooltip"
-          style={{ left: `${left}px`, top: `${top}px`, display: "flex", opacity: 1 }}
-        >
-          <div className="tooltip-title">{agent.name}</div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">Operation:</span>
-            <span className="tooltip-value" style={{ color: moduleColor, textTransform: "uppercase" }}>{data.module} {data.action}</span>
+        <div style={tooltipStyle}>
+          <div style={{ fontWeight: 800, color: isAnswered ? "#71a758" : "#ef4444", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.25rem", marginBottom: "0.4rem" }}>
+            Phone Call ({data.direction})
           </div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">Time:</span>
-            <span className="tooltip-value">{actTimeStr} BST</span>
+          <div>Contact: {data.contact_name || "Unknown"}</div>
+          <div>Status: {data.status || "Completed"}</div>
+          <div>Duration: {data.duration}</div>
+          <div style={{ marginTop: "0.3rem", fontSize: "0.72rem", opacity: 0.8 }}>
+            Time: {callTimeStr} BST
           </div>
-          {summary && (
-            <div className="tooltip-row" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "4px", marginTop: "4px" }}>
-              <span className="tooltip-label">Details:</span>
-              <span className="tooltip-value" style={{ color: "#e2e8f0", fontStyle: "italic", whiteSpace: "normal", maxWidth: "200px" }}>{summary}</span>
-            </div>
-          )}
         </div>
       );
     }
 
     if (type === "message") {
-      const msgTime = new Date(data.time);
-      const msgTimeStr =
-        msgTime.getUTCHours().toString().padStart(2, "00") +
-        ":" +
-        msgTime.getUTCMinutes().toString().padStart(2, "00");
-
+      const msgTimeStr = formatIsoToTime(data.timestamp);
       return (
-        <div
-          className="tooltip"
-          style={{ left: `${left}px`, top: `${top}px`, display: "flex", opacity: 1 }}
-        >
-          <div className="tooltip-title">{agent.name}</div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">State:</span>
-            <span className="tooltip-value" style={{ color: "#38bdf8" }}>Outbound Message</span>
+        <div style={tooltipStyle}>
+          <div style={{ fontWeight: 800, color: "#38bdf8", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.25rem", marginBottom: "0.4rem" }}>
+            GHL Message ({data.direction})
           </div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">Contact:</span>
-            <span className="tooltip-value">{data.contactName}</span>
+          <div>Contact: {data.contact_name || "Unknown"}</div>
+          <div style={{ fontStyle: "italic", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" }}>
+            "{data.body || "No message body"}"
           </div>
-          <div className="tooltip-row">
-            <span className="tooltip-label">Time:</span>
-            <span className="tooltip-value">{msgTimeStr} BST</span>
-          </div>
-          <div className="tooltip-row" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "4px", marginTop: "4px" }}>
-            <span className="tooltip-label">Content:</span>
-            <span className="tooltip-value" style={{ color: "#e2e8f0", fontStyle: "italic", whiteSpace: "normal", maxWidth: "200px" }}>{data.body}</span>
+          <div style={{ marginTop: "0.3rem", fontSize: "0.72rem", opacity: 0.8 }}>
+            Time: {msgTimeStr} BST
           </div>
         </div>
       );
     }
 
-
+    return null;
   };
 
   const hoveredAgentName = hoveredItem && hoveredItem.agent
@@ -879,23 +745,11 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
 
       {/* ── Canvas area: sticky names + scrollable chart (No vertical scroll maxHeight) ─────────────────── */}
       <div ref={containerRef} className="timeline-canvas-wrapper">
-        {/* Names column (sticky, vertical-scroll synced if needed) */}
-        {!hideNames && (
-          <div
-            ref={namesScrollRef}
-            className="timeline-names-panel"
-            onScroll={handleNamesScroll}
-          >
-            <canvas ref={namesCanvasRef} style={{ display: "block" }} />
-          </div>
-        )}
-
         {/* Chart area (horizontal scroll only) */}
         <div
           ref={scrollContainerRef}
           id="timeline-canvas-container"
           className="timeline-chart-panel"
-          onScroll={handleChartScroll}
           style={{ flex: 1, overflowX: "auto" }}
         >
           <canvas
@@ -916,4 +770,3 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
     </section>
   );
 }
-

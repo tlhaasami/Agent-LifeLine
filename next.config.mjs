@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: ["localhost", "192.168.100.169", "0.0.0.0"],
   async headers() {
     return [
       {

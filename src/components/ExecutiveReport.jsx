@@ -17,6 +17,8 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
   // Time workday window bounds state
   const [startHour, setStartHour] = useState(9);
   const [endHour, setEndHour] = useState(20);
+  const [startDropOpen, setStartDropOpen] = useState(false);
+  const [endDropOpen, setEndDropOpen] = useState(false);
 
   // Checklist filters for visual events
   const [filterGhlUpdates, setFilterGhlUpdates] = useState(true);
@@ -233,7 +235,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
 
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
-    const displayWidth = containerRef.current.clientWidth;
+    const displayWidth = Math.max(1200, containerRef.current ? containerRef.current.clientWidth : 1200);
     
     // Filter agents list based on multi-select checkbox array
     const filteredAgents = agents.filter(a => selectedAgents.includes(a.name));
@@ -266,7 +268,8 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
       ctx.lineTo(xVal, displayHeight - timelineBottomMargin);
       ctx.stroke();
 
-      const label = formatBSTTime(drawDate) + " BST";
+      const isLast = drawDate.getTime() + 3600000 > endMs;
+      const label = formatBSTTime(drawDate) + (isLast ? " BST" : "");
       ctx.fillText(label, xVal, timelineTopMargin - 15);
 
       drawDate.setUTCHours(drawDate.getUTCHours() + 1);
@@ -1446,31 +1449,147 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
               </div>
 
               {/* Time bounds Start & End Picker */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-secondary)" }}>Bounds:</span>
-                <select
-                  value={startHour}
-                  onChange={(e) => {
-                    const newStart = parseInt(e.target.value);
-                    setStartHour(newStart);
-                    if (endHour <= newStart) setEndHour(newStart + 1);
-                  }}
-                  style={{ padding: "0.3rem 1.8rem 0.3rem 0.6rem", fontSize: "0.8rem", borderRadius: "6px" }}
-                >
-                  {Array.from({ length: 24 }).map((_, h) => (
-                    <option key={h} value={h}>{h.toString().padStart(2, "0")}:00 BST</option>
-                  ))}
-                </select>
+                
+                {/* Start Hour Custom Dropdown */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    onClick={() => setStartDropOpen(!startDropOpen)}
+                    style={{
+                      padding: "0.3rem 0.8rem",
+                      borderRadius: "6px",
+                      background: "var(--card-bg)",
+                      border: "1px solid var(--card-border)",
+                      color: "var(--text-primary)",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    {startHour.toString().padStart(2, "0")}:00 BST
+                    <i className={`fa-solid fa-chevron-${startDropOpen ? "up" : "down"}`} style={{ fontSize: "0.65rem", color: "var(--primary)" }}></i>
+                  </button>
+                  {startDropOpen && (
+                    <>
+                      <div onClick={() => setStartDropOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9999 }} />
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "105%",
+                          left: 0,
+                          minWidth: "125px",
+                          maxHeight: "200px",
+                          overflowY: "auto",
+                          zIndex: 10000,
+                          borderRadius: "8px",
+                          border: "1px solid var(--card-border)",
+                          background: "var(--card-bg)",
+                          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.3)",
+                          padding: "0.3rem 0",
+                        }}
+                      >
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <div
+                            key={i}
+                            onClick={() => {
+                              setStartHour(i);
+                              if (i >= endHour) setEndHour(Math.min(24, i + 1));
+                              setStartDropOpen(false);
+                            }}
+                            style={{
+                              padding: "0.5rem 0.9rem",
+                              fontSize: "0.8rem",
+                              cursor: "pointer",
+                              background: startHour === i ? "rgba(209,92,46,0.08)" : "transparent",
+                              color: startHour === i ? "var(--primary)" : "var(--text-primary)",
+                              fontWeight: 600,
+                              textAlign: "left"
+                            }}
+                            onMouseEnter={(e) => { if (startHour !== i) e.currentTarget.style.background = "var(--border-light)"; }}
+                            onMouseLeave={(e) => { if (startHour !== i) e.currentTarget.style.background = "transparent"; }}
+                          >
+                            {i.toString().padStart(2, "0")}:00 BST
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>to</span>
-                <select
-                  value={endHour}
-                  onChange={(e) => setEndHour(parseInt(e.target.value))}
-                  style={{ padding: "0.3rem 1.8rem 0.3rem 0.6rem", fontSize: "0.8rem", borderRadius: "6px" }}
-                >
-                  {Array.from({ length: 24 }).map((_, h) => (
-                    <option key={h} value={h} disabled={h <= startHour}>{h.toString().padStart(2, "0")}:00 BST</option>
-                  ))}
-                </select>
+
+                {/* End Hour Custom Dropdown */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    onClick={() => setEndDropOpen(!endDropOpen)}
+                    style={{
+                      padding: "0.3rem 0.8rem",
+                      borderRadius: "6px",
+                      background: "var(--card-bg)",
+                      border: "1px solid var(--card-border)",
+                      color: "var(--text-primary)",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    {endHour.toString().padStart(2, "0")}:00 BST
+                    <i className={`fa-solid fa-chevron-${endDropOpen ? "up" : "down"}`} style={{ fontSize: "0.65rem", color: "var(--primary)" }}></i>
+                  </button>
+                  {endDropOpen && (
+                    <>
+                      <div onClick={() => setEndDropOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9999 }} />
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "105%",
+                          left: 0,
+                          minWidth: "125px",
+                          maxHeight: "200px",
+                          overflowY: "auto",
+                          zIndex: 10000,
+                          borderRadius: "8px",
+                          border: "1px solid var(--card-border)",
+                          background: "var(--card-bg)",
+                          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.3)",
+                          padding: "0.3rem 0",
+                        }}
+                      >
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <div
+                            key={i}
+                            onClick={() => {
+                              const val = i + 1;
+                              setEndHour(val);
+                              if (val <= startHour) setStartHour(Math.max(0, val - 1));
+                              setEndDropOpen(false);
+                            }}
+                            style={{
+                              padding: "0.5rem 0.9rem",
+                              fontSize: "0.8rem",
+                              cursor: "pointer",
+                              background: endHour === (i + 1) ? "rgba(209,92,46,0.08)" : "transparent",
+                              color: endHour === (i + 1) ? "var(--primary)" : "var(--text-primary)",
+                              fontWeight: 600,
+                              textAlign: "left"
+                            }}
+                            onMouseEnter={(e) => { if (endHour !== (i + 1)) e.currentTarget.style.background = "var(--border-light)"; }}
+                            onMouseLeave={(e) => { if (endHour !== (i + 1)) e.currentTarget.style.background = "transparent"; }}
+                          >
+                            {(i + 1).toString().padStart(2, "0")}:00 BST
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1572,7 +1691,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
             ref={containerRef}
             style={{ overflowX: "auto", overflowY: "hidden", width: "100%", WebkitOverflowScrolling: "touch" }}
           >
-            <div className="timeline-container" style={{ minWidth: "900px" }}>
+            <div className="timeline-container" style={{ minWidth: "1200px" }}>
               <canvas
                 ref={canvasRef}
                 onMouseMove={handleMouseMove}
