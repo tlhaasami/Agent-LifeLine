@@ -14,7 +14,7 @@ const bevan = Bevan({
 });
 
 export const metadata = {
-  title: "LifeLine - Agent Performance & Activity Hub",
+  title: "Agent LifeLine",
   description: "The premium GoHighLevel agent performance, activity tracking, and call analytics hub.",
 };
 
@@ -22,6 +22,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${outfit.variable} ${bevan.variable}`}>
       <head>
+        <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="shortcut icon" href="/logo.png" type="image/png" />
         <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"

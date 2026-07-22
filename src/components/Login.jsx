@@ -72,9 +72,9 @@ export default function Login({ onSuccess }) {
         <div className="login-form-inner">
           {/* Logo / Header */}
           <div className="login-logo-header">
-            <img src="/logo.png" alt="LifeLine Logo" className="login-logo-img" />
+            <img src="/logo.png" alt="Agent LifeLine Logo" className="login-logo-img" />
             <h1 className="login-title">
-              LifeLine
+              Agent LifeLine
             </h1>
           </div>
 

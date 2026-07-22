@@ -345,7 +345,7 @@ export default function HeroSection({ isLoggedIn, onLoginSuccess, onEnterWorkspa
           border: "none",
           boxShadow: "none"
         }}>
-          LifeLine
+          Agent LifeLine
         </div>
       )
     },
@@ -1138,7 +1138,8 @@ export default function HeroSection({ isLoggedIn, onLoginSuccess, onEnterWorkspa
       {/* Right Column: Scattered Element Canvas (Constantly visible behind the mobile drawer!) */}
       <motion.div 
         animate={{ 
-          x: (showLoginSplit && !isMobile) ? "20vw" : 0
+          x: (showLoginSplit && !isMobile) ? "20vw" : 0,
+          filter: (showLoginSplit && isMobile) ? "blur(3px)" : "blur(0px)"
         }}
         transition={{ type: "spring", stiffness: 90, damping: 16 }}
         style={{
@@ -1337,7 +1338,7 @@ export default function HeroSection({ isLoggedIn, onLoginSuccess, onEnterWorkspa
             {/* Glassmorphic card container only on mobile to blur background behind the form */}
             <div style={isMobile ? {
               background: "rgba(234, 224, 213, 0.75)",
-              backdropFilter: "blur(4px)",
+              backdropFilter: "none",
               borderRadius: "16px",
               border: "1px solid rgba(34, 51, 59, 0.06)",
               padding: "2rem 1.5rem",
@@ -1378,7 +1379,7 @@ export default function HeroSection({ isLoggedIn, onLoginSuccess, onEnterWorkspa
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
                 <img src="/logo.png" alt="Logo" style={{ width: "36px", height: "36px", objectFit: "contain" }} />
                 <span style={{ fontSize: "1.25rem", fontWeight: 900, color: "#22333B", fontFamily: "'Outfit', sans-serif" }}>
-                  LifeLine
+                  Agent LifeLine
                 </span>
               </div>
             )}

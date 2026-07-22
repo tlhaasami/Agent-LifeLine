@@ -37,8 +37,8 @@ export default function Sidebar({
       </button>
 
       <div className="sidebar-header" style={{ gap: "0.55rem" }}>
-        <img src="/logo.png" alt="LifeLine Logo" style={{ height: "26px", width: "auto", flexShrink: 0 }} />
-        <span className="sidebar-logo-text">LifeLine</span>
+        <img src="/logo.png" alt="Agent LifeLine Logo" style={{ height: "26px", width: "auto", flexShrink: 0 }} />
+        <span className="sidebar-logo-text">Agent LifeLine</span>
       </div>
 
       <nav className="sidebar-menu">

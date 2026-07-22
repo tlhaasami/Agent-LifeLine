@@ -967,8 +967,8 @@ export default function UploadDataPage() {
     <div className="upload-layout" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", backgroundColor: "var(--bg-color)" }}>
       <header style={{ borderBottom: "1px solid var(--card-border)", padding: "1.2rem 2.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100, backgroundColor: "var(--bg-color)", marginTop: 0, paddingTop: "1.2rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
-          <img src="/logo.png" alt="LifeLine Logo" style={{ height: "30px", width: "auto" }} />
-          <h2 style={{ margin: 0, fontSize: "1.4rem" }}>LifeLine Onboarding Portal</h2>
+          <img src="/logo.png" alt="Agent LifeLine Logo" style={{ height: "30px", width: "auto" }} />
+          <h2 style={{ margin: 0, fontSize: "1.4rem" }}>Agent LifeLine Onboarding Portal</h2>
         </div>
         <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
           <Link href="/" className="btn-primary-small" style={{ textDecoration: "none", backgroundColor: "rgba(255,255,255,0.05)", color: "var(--text-primary)", border: "1px solid var(--card-border)" }}>
