@@ -187,7 +187,8 @@ export function processAgentData(
   nominalActionMinutes = 5,
   timezone = "BST",
   isMarginOnly = false,
-  contactsRows = []
+  contactsRows = [],
+  marginRows = []
 ) {
   const oppCounts = {};
   const contactToAgent = {};
@@ -446,16 +447,16 @@ export function processAgentData(
 
     agentActivities[agentClean].push(activity);
 
-    if (isJuly17BST(bstTime, targetDateStr)) {
-      bstUpdatesList.push({
-        agent: agentClean,
-        time: bstTime,
-        module: activity.module,
-        action: activity.action,
-        details,
-      });
+    // Keep all audit logs on the timeline
+    bstUpdatesList.push({
+      agent: agentClean,
+      time: bstTime,
+      module: activity.module,
+      action: activity.action,
+      details,
+    });
 
-      // Parse pipeline stage changes on July 17 BST
+    if (isJuly17BST(bstTime, targetDateStr)) {
       if (moduleName === "OPPORTUNITY" && details) {
         const match = details.match(/"pipelineStageName"\s*:\s*"([^"]+)"/);
         if (match) {
@@ -466,36 +467,63 @@ export function processAgentData(
     }
   });
 
-  // 5. Margin summation on target day BST
+  // 5. Margin summation from Margin File (marginRows)
   const agentMargins = {};
-  opportunitiesRows.forEach((row) => {
-    const assignedRaw = row.assigned || row.Assigned || row["Assigned user"] || row["Assigned User"];
-    if (!assignedRaw) return;
-    const assigned = normalizeAgentName(assignedRaw);
+  const agentMarginDetails = {};
 
-    if (isMarginOnly) {
-      // For margin-only reports, treat rows as correct date and sum by Lead value
-      const leadVal = parseFloat(row["Lead value"] || row["Lead Value"] || 0);
-      agentMargins[assigned] = (agentMargins[assigned] || 0) + leadVal;
-    } else {
-      // For regular opportunity list, verify Margin Amount matches Lead value, on the correct target date
-      const marginAddedDate = row["Margin Added Date"] || row["margin_added_date"];
-      if (!marginAddedDate) return;
+  const getRowVal = (row, keys) => {
+    for (const k of keys) {
+      if (row[k] !== undefined) return row[k];
+      const lowerKey = k.toLowerCase();
+      const foundKey = Object.keys(row).find(rk => rk.toLowerCase() === lowerKey);
+      if (foundKey && row[foundKey] !== undefined) return row[foundKey];
+    }
+    return "";
+  };
 
-      const bstMarginDate = toBST(marginAddedDate, targetDateStr, "BST");
-      if (isJuly17BST(bstMarginDate, targetDateStr)) {
-        const marginValRaw = row["Margin Amount"] || row["Margin amount"] || "0";
-        const leadValRaw = row["Lead value"] || row["Lead Value"] || "0";
+  marginRows.forEach((row) => {
+    const leadVal = parseFloat(row["Lead value"] || row["Lead Value"] || row["Margin Amount"] || row["Margin amount"] || 0);
+    if (isNaN(leadVal) || leadVal <= 0) return;
 
-        const marginVal = parseFloat(marginValRaw);
-        if (!isNaN(marginVal) && marginVal > 0) {
-          agentMargins[assigned] = (agentMargins[assigned] || 0) + marginVal;
-        }
+    // Find the agent from opportunities.csv lookup maps
+    const phone = row["Phone number"] || row["Phone Number"] || row["phone"] || row["Phone"];
+    const name = row["Opportunity name"] || row["Opportunity Name"] || row["Primary Contact name"] || row["Primary Contact Name"] || row["Contact name"] || row["Contact Name"];
+    
+    let assigned = findAgent(phone, name);
+    if (!assigned) {
+      // Fallback to assigned agent in the margin row itself
+      const rawAssigned = row["Assigned user"] || row["assigned"] || row["Assigned"] || row["Assigned To"] || row["assignedTo"];
+      if (rawAssigned) {
+        assigned = normalizeAgentName(rawAssigned);
       }
     }
+
+    if (!assigned) return;
+
+    agentMargins[assigned] = (agentMargins[assigned] || 0) + leadVal;
+
+    const nameVal = getRowVal(row, ["Opportunity name", "Opportunity Name", "Primary Contact name", "Primary Contact Name", "Contact name", "Contact Name"]);
+    const stageVal = getRowVal(row, ["Stage", "stage"]);
+    const statusVal = getRowVal(row, ["Status", "status"]);
+    const sourceVal = getRowVal(row, ["Source", "source"]);
+    const phoneVal = getRowVal(row, ["Phone number", "Phone Number", "phone", "Phone"]);
+    const emailVal = getRowVal(row, ["Email", "email"]);
+
+    if (!agentMarginDetails[assigned]) agentMarginDetails[assigned] = [];
+    agentMarginDetails[assigned].push({
+      name: nameVal || "Unknown",
+      margin: leadVal,
+      date: targetDateStr,
+      stage: stageVal,
+      status: statusVal,
+      source: sourceVal,
+      phone: phoneVal,
+      email: emailVal,
+      agent: assigned
+    });
   });
 
-  // Compile raw new leads and margin opportunities details per agent
+  // Compile raw new leads details per agent
   const agentNewLeadsDetails = {};
   newLeadsRows.forEach((row) => {
     const agent = normalizeAgentName(row["Assigned user"] || row.assigned || findAgent(row["Phone number"], row["Opportunity name"]));
@@ -516,68 +544,6 @@ export function processAgentData(
       assigned: agent,
       created: row["Created on"]
     });
-  });
-
-  const getRowVal = (row, keys) => {
-    for (const k of keys) {
-      if (row[k] !== undefined) return row[k];
-      const lowerKey = k.toLowerCase();
-      const foundKey = Object.keys(row).find(rk => rk.toLowerCase() === lowerKey);
-      if (foundKey && row[foundKey] !== undefined) return row[foundKey];
-    }
-    return "";
-  };
-
-  const agentMarginDetails = {};
-  opportunitiesRows.forEach((row) => {
-    const assignedRaw = row.assigned || row.Assigned || row["Assigned user"] || row["Assigned User"] || row["Assigned To"] || row["assignedTo"];
-    if (!assignedRaw) return;
-    const assigned = normalizeAgentName(assignedRaw);
-
-    const nameVal = getRowVal(row, ["Opportunity name", "Opportunity Name", "Primary Contact name", "Primary Contact Name", "Contact name", "Contact Name"]);
-    const stageVal = getRowVal(row, ["Stage", "stage"]);
-    const statusVal = getRowVal(row, ["Status", "status"]);
-    const sourceVal = getRowVal(row, ["Source", "source"]);
-    const phoneVal = getRowVal(row, ["Phone number", "Phone Number", "phone", "Phone"]);
-    const emailVal = getRowVal(row, ["Email", "email"]);
-
-    if (isMarginOnly) {
-      const leadVal = parseFloat(getRowVal(row, ["Lead value", "Lead Value", "margin", "Margin", "Margin Amount", "Margin amount"]) || 0);
-      if (!agentMarginDetails[assigned]) agentMarginDetails[assigned] = [];
-      agentMarginDetails[assigned].push({
-        name: nameVal || "Unknown",
-        margin: leadVal,
-        date: targetDateStr,
-        stage: stageVal,
-        status: statusVal,
-        source: sourceVal,
-        phone: phoneVal,
-        email: emailVal,
-        agent: assigned
-      });
-    } else {
-      const marginAddedDate = row["Margin Added Date"] || row["margin_added_date"];
-      if (!marginAddedDate) return;
-      const bstMarginDate = toBST(marginAddedDate, targetDateStr, timezone);
-      if (isJuly17BST(bstMarginDate, targetDateStr)) {
-        const marginValRaw = row["Margin Amount"] || row["Margin amount"] || "0";
-        const marginVal = parseFloat(marginValRaw);
-        if (!isNaN(marginVal) && marginVal > 0) {
-          if (!agentMarginDetails[assigned]) agentMarginDetails[assigned] = [];
-          agentMarginDetails[assigned].push({
-            name: nameVal || "Unknown",
-            margin: marginVal,
-            date: marginAddedDate,
-            stage: stageVal,
-            status: statusVal,
-            source: sourceVal,
-            phone: phoneVal,
-            email: emailVal,
-            agent: assigned
-          });
-        }
-      }
-    }
   });
 
   // Compile today's conversion leads details per agent (treating all rows as active today)

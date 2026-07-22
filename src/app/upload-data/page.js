@@ -45,6 +45,7 @@ export default function UploadDataPage() {
   // Files states
   const [auditFiles, setAuditFiles] = useState([]);
   const [oppsFile, setOppsFile] = useState(null);
+  const [marginFile, setMarginFile] = useState(null);
   const [callsFile, setCallsFile] = useState(null);
   const [newLeadsFile, setNewLeadsFile] = useState(null);
   const [bookedLeadsFile, setBookedLeadsFile] = useState(null);
@@ -70,7 +71,8 @@ export default function UploadDataPage() {
     apptRows: [],
     closedRows: [],
     contactsRows: [],
-    originalOppsRows: []
+    originalOppsRows: [],
+    marginRows: []
   });
   const [compiledData, setCompiledData] = useState(null);
 
@@ -203,6 +205,7 @@ export default function UploadDataPage() {
     const files = Array.from(e.target.files);
     const identifiedAudits = [];
     let identifiedOpps = oppsFile;
+    let identifiedMargin = marginFile;
     let identifiedCalls = callsFile;
     let identifiedNew = newLeadsFile;
     let identifiedBooked = bookedLeadsFile;
@@ -212,7 +215,9 @@ export default function UploadDataPage() {
 
     files.forEach((file) => {
       const name = file.name.toLowerCase();
-      if (name.includes("opportunity") || name.includes("opportunities") || name.includes("margin")) {
+      if (name.includes("margin")) {
+        identifiedMargin = file;
+      } else if (name.includes("opportunity") || name.includes("opportunities")) {
         identifiedOpps = file;
       } else if (
         name.includes("call-report") ||
@@ -249,6 +254,7 @@ export default function UploadDataPage() {
 
     if (identifiedAudits.length > 0) setAuditFiles(identifiedAudits);
     if (identifiedOpps) setOppsFile(identifiedOpps);
+    if (identifiedMargin) setMarginFile(identifiedMargin);
     if (identifiedCalls) setCallsFile(identifiedCalls);
     if (identifiedNew) setNewLeadsFile(identifiedNew);
     if (identifiedBooked) setBookedLeadsFile(identifiedBooked);
@@ -450,15 +456,29 @@ export default function UploadDataPage() {
   const runOnboardingStep = async (stepIdx, currentTempData) => {
     try {
       if (stepIdx === 0) {
-        // Step 1: Parse Opportunities Database
-        let oppsRows = [];
-        if (oppsFile) {
-          const text = await readFileText(oppsFile);
-          oppsRows = parseCSV(text);
+        // Step 1: Parse Opportunities Database & Margin File
+        if (!oppsFile) {
+          throw new Error("Opportunities Database file is required. Please upload opportunities.csv.");
         }
-        const nextData = { ...currentTempData, oppsRows, originalOppsRows: oppsRows };
+        if (!marginFile) {
+          throw new Error("Margin File is required. Please upload Margin per Agent CSV.");
+        }
+
+        const oppsText = await readFileText(oppsFile);
+        const rawOpps = parseCSV(oppsText);
+        const oppsRows = rawOpps.filter(row => {
+          const assigned = row.assigned || row.Assigned || row["Assigned user"] || row["Assigned User"] || row["Assigned To"] || row["assignedTo"];
+          return assigned && assigned.trim() !== "";
+        });
+
+        const marginText = await readFileText(marginFile);
+        const marginRows = parseCSV(marginText);
+
+        const nextData = { ...currentTempData, oppsRows, originalOppsRows: oppsRows, marginRows };
         setTempParsedData(nextData);
-        setStepDetails(`Opportunities database loaded.\nTotal Opportunities parsed: ${oppsRows.length}`);
+
+        let detailsMsg = `Opportunities database parsed.\nTotal opportunities loaded: ${rawOpps.length}\nKept assigned opportunities: ${oppsRows.length} (dropped ${rawOpps.length - oppsRows.length} unassigned ones)\n\nMargin database loaded.\nTotal Margin rows parsed: ${marginRows.length}`;
+        setStepDetails(detailsMsg);
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -474,7 +494,7 @@ export default function UploadDataPage() {
         });
       }
       else if (stepIdx === 1) {
-        // Step 2: Read GHL Agent Logs & Filter Interacted Opportunities
+        // Step 2: Read GHL Agent Logs
         const auditRows = [];
         for (const file of auditFiles) {
           const text = await readFileText(file);
@@ -511,14 +531,10 @@ export default function UploadDataPage() {
           }
         });
 
-        const filteredOpps = currentTempData.oppsRows.filter(row => {
-          const oppId = row['Opportunity ID'] || row['opportunityId'] || row['id'];
-          return oppId && auditOppIds.has(oppId);
-        });
-
-        const nextData = { ...currentTempData, auditRows, oppsRows: filteredOpps };
+        // Keep all opportunities (no dropping based on audit logs)
+        const nextData = { ...currentTempData, auditRows };
         setTempParsedData(nextData);
-        setStepDetails(`Parsed ${auditFiles.length} GHL Agent Log files.\nTotal log rows: ${auditRows.length}\nUnique opportunities with audit activity: ${auditOppIds.size}\nInteracted opportunities kept: ${filteredOpps.length} (dropped ${currentTempData.oppsRows.length - filteredOpps.length} inactive ones)`);
+        setStepDetails(`Parsed ${auditFiles.length} GHL Agent Log files.\nTotal log rows: ${auditRows.length}\nUnique opportunities with audit activity: ${auditOppIds.size}`);
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -638,27 +654,14 @@ export default function UploadDataPage() {
       else if (stepIdx === 5) {
         // Step 6: Calculate Margin Generated Today
         let totalMargin = 0;
-        const isMarginOnly = oppsFile && oppsFile.name.toLowerCase().includes("margin");
-        currentTempData.originalOppsRows.forEach(row => {
-          if (isMarginOnly) {
-            const leadVal = parseFloat(row["Lead value"] || row["Lead Value"] || 0);
+        currentTempData.marginRows.forEach(row => {
+          const leadVal = parseFloat(row["Lead value"] || row["Lead Value"] || row["Margin Amount"] || row["Margin amount"] || 0);
+          if (!isNaN(leadVal) && leadVal > 0) {
             totalMargin += leadVal;
-          } else {
-            const marginAddedDate = row["Margin Added Date"] || row["margin_added_date"];
-            if (marginAddedDate) {
-              const bstMarginDate = toBST(marginAddedDate, reportDate, "BST");
-              if (isJuly17BST(bstMarginDate, reportDate)) {
-                const marginValRaw = row["Margin Amount"] || row["Margin amount"] || "0";
-                const marginVal = parseFloat(marginValRaw);
-                if (!isNaN(marginVal) && marginVal > 0) {
-                  totalMargin += marginVal;
-                }
-              }
-            }
           }
         });
 
-        setStepDetails(`Opportunities scanned for daily margin added on date ${reportDate}.\nTotal Margin Generated today: £${totalMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        setStepDetails(`Margin records processed from Margin File.\nTotal Margin Generated today: £${totalMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -691,7 +694,6 @@ export default function UploadDataPage() {
         let summaryText = `Contacts database parsed successfully.\nTotal contacts parsed: ${contactsRows.length}`;
 
         // Compile everything
-        const isMarginOnly = oppsFile && oppsFile.name.toLowerCase().includes("margin");
         const processed = processAgentData(
           currentTempData.auditRows,
           currentTempData.originalOppsRows, // Use unfiltered opps so processAgentData can count all opportunities properly!
@@ -704,8 +706,9 @@ export default function UploadDataPage() {
           30,
           5,
           timezone,
-          isMarginOnly,
-          contactsRows
+          false,
+          contactsRows,
+          currentTempData.marginRows
         );
 
         // Sync Outbound Messages
@@ -777,7 +780,8 @@ export default function UploadDataPage() {
       apptRows: [],
       closedRows: [],
       contactsRows: [],
-      originalOppsRows: []
+      originalOppsRows: [],
+      marginRows: []
     };
 
     setTempParsedData(initialData);
@@ -1317,6 +1321,24 @@ export default function UploadDataPage() {
                     </div>
                   </div>
 
+                  {/* 2b. Margin File */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                    <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
+                      2b. Margin File (Required):
+                    </label>
+                    <div className="custom-file-input-wrapper">
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={(e) => setMarginFile(e.target.files[0] || null)}
+                      />
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid #10b981" }}>
+                        <i className="fa-solid fa-file-invoice-dollar"></i>{" "}
+                        {marginFile ? marginFile.name : "Choose Margin File..."}
+                      </div>
+                    </div>
+                  </div>
+
                   {/* 3. Call Logs */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
@@ -1455,6 +1477,12 @@ export default function UploadDataPage() {
                   Opportunities Master:{" "}
                   <strong style={{ color: oppsFile ? "var(--success)" : "var(--text-secondary)" }}>
                     {oppsFile ? `✓ ${oppsFile.name}` : "Missing"}
+                  </strong>
+                </li>
+                <li>
+                  Margin File (Required):{" "}
+                  <strong style={{ color: marginFile ? "var(--success)" : "var(--error)" }}>
+                    {marginFile ? `✓ ${marginFile.name}` : "Missing"}
                   </strong>
                 </li>
                 <li>
