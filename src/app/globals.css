@@ -1435,10 +1435,14 @@ tbody tr td:first-child {
     color: white;
     display: flex;
     flex-direction: column;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
+    height: 100vh;
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+    overflow: hidden;
     border-right: 1px solid var(--card-border);
     flex-shrink: 0;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar.collapsed {
@@ -1462,6 +1466,8 @@ tbody tr td:first-child {
     z-index: 100;
     font-size: 0.75rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    padding: 0 !important;
+    line-height: 1 !important;
 }
 
 .sidebar-header {
@@ -1500,6 +1506,12 @@ tbody tr td:first-child {
     flex-direction: column;
     gap: 0.4rem;
     flex: 1;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.sidebar-menu::-webkit-scrollbar {
+    display: none;
 }
 
 .sidebar-menu-item {
@@ -2667,4 +2679,101 @@ select option {
     .timeline-controls span {
         font-size: 0.76rem !important;
     }
+}
+
+/* Custom media queries for KPI metrics layout and controls wrap */
+@media (max-width: 768px) {
+    .metrics-matrix-container {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .metric-card-wrapper {
+        flex: 1 1 auto !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 0.75rem 1rem !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        border-radius: 8px !important;
+        text-align: left !important;
+    }
+
+    .metric-card-title {
+        font-size: 0.85rem !important;
+        color: var(--text-secondary) !important;
+        margin: 0 !important;
+        font-weight: 600 !important;
+    }
+
+    .metric-card-value {
+        font-size: 1.15rem !important;
+        font-weight: 800 !important;
+        margin: 0 !important;
+        color: var(--text-primary) !important;
+    }
+
+    /* Hide description subtext badge on mobile by default */
+    .metric-card-sub {
+        display: none !important;
+    }
+
+    /* Only show description badge (c.sub) on mobile if the card is active/selected */
+    .metric-card-wrapper.active-card {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.35rem !important;
+    }
+
+    .metric-card-wrapper.active-card .metric-card-sub {
+        display: inline-block !important;
+        margin-top: 0.15rem !important;
+        font-size: 0.7rem !important;
+        padding: 0.15rem 0.5rem !important;
+    }
+
+    /* Force controls to wrap down nicely if width is small to prevent overlap */
+    .no-print {
+        flex-wrap: wrap !important;
+        gap: 0.6rem !important;
+    }
+
+    /* Move search headers below the title in mobile view */
+    .search-header-card {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem !important;
+        padding: 1rem !important;
+    }
+    
+    .search-header-card h2 {
+        font-size: 1.2rem !important;
+    }
+    
+    .search-header-card .search-box {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+
+    .export-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+}
+
+/* Desktop styles for export-grid */
+.export-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+    width: 100%;
 }

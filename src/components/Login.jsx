@@ -71,42 +71,28 @@ export default function Login({ onSuccess }) {
       <div className="login-form-col">
         <div className="login-form-inner">
           {/* Logo / Header */}
-          <div style={{ display: "flex", alignItems: "center", gap: "1.2rem", marginBottom: "2rem" }}>
-            <img src="/logo.png" alt="LifeLine Logo" style={{ height: "60px", width: "auto" }} />
-            <h1 style={{
-              margin: 0,
-              fontSize: "2.4rem",
-              fontWeight: 900,
-              letterSpacing: "-0.04em",
-              color: "#111827",
-              fontFamily: "'Outfit', sans-serif"
-            }}>
+          <div className="login-logo-header">
+            <img src="/logo.png" alt="LifeLine Logo" className="login-logo-img" />
+            <h1 className="login-title">
               LifeLine
             </h1>
           </div>
 
-          <h2 style={{
-            fontSize: "2rem",
-            fontWeight: 800,
-            marginBottom: "0.5rem",
-            color: "#111827",
-            letterSpacing: "-0.02em",
-            fontFamily: "'Outfit', sans-serif"
-          }}>
+          <h2 className="login-subtitle">
             Welcome Back
           </h2>
-          <p style={{ color: "#4b5563", fontSize: "0.92rem", marginBottom: "2rem", lineHeight: "1.5", fontWeight: 500 }}>
+          <p className="login-desc">
             Enter your credentials to access the tracking dashboard.
           </p>
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.3rem" }}>
+          <form onSubmit={handleSubmit} className="login-form-element">
             {error && (
               <div style={{
                 padding: "0.85rem 1.1rem",
-                background: "rgba(239, 68, 68, 0.1)",
-                border: "1px solid rgba(239, 68, 68, 0.25)",
+                background: "rgba(239, 68, 68, 0.15)",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
                 borderRadius: "10px",
-                color: "#dc2626",
+                color: "#f87171",
                 fontSize: "0.88rem",
                 display: "flex",
                 alignItems: "center",
@@ -230,7 +216,7 @@ export default function Login({ onSuccess }) {
             </button>
           </form>
 
-          <footer style={{ marginTop: "2.5rem", fontSize: "0.78rem", color: "#6b7280", fontWeight: 500 }}>
+          <footer className="login-footer">
             LifeLine Systems &copy; {new Date().getFullYear()}. Secure administrator access.
           </footer>
         </div>
@@ -283,6 +269,58 @@ export default function Login({ onSuccess }) {
           max-width: 380px;
         }
 
+        .login-logo-header {
+          display: flex;
+          align-items: center;
+          gap: 1.2rem;
+          margin-bottom: 2rem;
+        }
+
+        .login-logo-img {
+          height: 60px;
+          width: auto;
+          flex-shrink: 0;
+        }
+
+        .login-title {
+          margin: 0;
+          font-size: 2.4rem;
+          font-weight: 900;
+          letter-spacing: -0.04em;
+          color: #111827;
+          font-family: 'Outfit', sans-serif;
+        }
+
+        .login-subtitle {
+          font-size: 2rem;
+          font-weight: 800;
+          margin-bottom: 0.5rem;
+          color: #111827;
+          letter-spacing: -0.02em;
+          font-family: 'Outfit', sans-serif;
+        }
+
+        .login-desc {
+          color: #4b5563;
+          font-size: 0.92rem;
+          margin-bottom: 2rem;
+          line-height: 1.5;
+          font-weight: 500;
+        }
+
+        .login-form-element {
+          display: flex;
+          flex-direction: column;
+          gap: 1.3rem;
+        }
+
+        .login-footer {
+          margin-top: 2.5rem;
+          font-size: 0.78rem;
+          color: #6b7280;
+          font-weight: 500;
+        }
+
         .login-video-col {
           flex: 0 0 55%;
           width: 55%;
@@ -306,7 +344,6 @@ export default function Login({ onSuccess }) {
           background-color: #ffffff !important;
         }
         
-        /* Premium Micro-Animated Sign In Button */
         .animated-btn {
           position: relative;
           overflow: hidden;
@@ -350,13 +387,16 @@ export default function Login({ onSuccess }) {
           box-shadow: 0 4px 10px rgba(209, 92, 46, 0.3) !important;
         }
 
-        /* Mobile Layout (< 900px): Light Glass Card over background video */
+        /* Mobile Layout (< 900px): Centered Glass Card with NO vertical scrolling */
         @media (max-width: 900px) {
           .login-root {
             position: relative !important;
             justify-content: center !important;
             align-items: center !important;
-            padding: 1.5rem !important;
+            padding: 1rem !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            overflow: hidden !important;
             background-color: #ffffff !important;
           }
 
@@ -372,24 +412,50 @@ export default function Login({ onSuccess }) {
           .login-form-col {
             flex: none !important;
             width: 100% !important;
-            max-width: 440px !important;
-            padding: 2.5rem 1.8rem !important;
-            background: rgba(255, 255, 255, 0.65) !important;
+            max-width: 380px !important;
+            padding: 2rem 1.5rem !important;
+            background: rgba(255, 255, 255, 0.72) !important;
             backdrop-filter: blur(14px) !important;
             -webkit-backdrop-filter: blur(14px) !important;
             border: 1px solid rgba(255, 255, 255, 0.6) !important;
             border-radius: 20px !important;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1) !important;
             margin: auto !important;
             z-index: 10 !important;
+            max-height: 92vh !important;
+            max-height: 92dvh !important;
+            overflow: hidden !important;
           }
 
-          .login-form-inner p, .login-form-inner h2, .login-form-inner footer {
+          .login-logo-header {
+            margin-bottom: 1.25rem !important;
+          }
+
+          .login-logo-img {
+            height: 48px !important;
+          }
+
+          .login-title {
+            font-size: 2rem !important;
+          }
+
+          .login-subtitle {
+            font-size: 1.7rem !important;
+            margin-bottom: 0.25rem !important;
+          }
+
+          .login-desc {
+            font-size: 0.85rem !important;
+            margin-bottom: 1.25rem !important;
+          }
+
+          .login-form-element {
+            gap: 0.9rem !important;
+          }
+
+          .login-footer {
+            margin-top: 1.5rem !important;
             text-align: center !important;
-          }
-
-          .login-form-inner div:first-child {
-            justify-content: center !important;
           }
         }
       `}</style>

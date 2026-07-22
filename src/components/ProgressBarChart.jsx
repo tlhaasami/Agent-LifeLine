@@ -57,10 +57,10 @@ export default function ProgressBarChart({
 
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
 
-    const paddingLeft = 45;
+    const paddingLeft = 50;
     const paddingRight = 15;
     const paddingTop = 25;
-    const paddingBottom = 75;
+    const paddingBottom = 80;
 
     const chartWidth = dimensions.width - paddingLeft - paddingRight;
     const chartHeight = dimensions.height - paddingTop - paddingBottom;
@@ -169,8 +169,8 @@ export default function ProgressBarChart({
         ? `700 ${labelFontSize} Outfit, sans-serif`
         : `600 ${labelFontSize} Outfit, sans-serif`;
       
-      // Truncate name based on available width
-      const maxChars = barWidth < 20 ? 8 : barWidth < 35 ? 11 : 13;
+      // Truncate name based on available width and container size
+      const maxChars = dimensions.width < 380 ? 6 : barWidth < 20 ? 8 : barWidth < 35 ? 11 : 13;
       const name = item.name.length > maxChars ? `${item.name.slice(0, maxChars - 2)}...` : item.name;
       ctx.fillText(name, 0, 0);
       ctx.restore();

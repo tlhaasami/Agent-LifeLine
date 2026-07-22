@@ -293,10 +293,23 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
             hoveredItem.data === act &&
             hoveredItem.agent.name === agent.name;
 
-          let actColor = "#db8324";
-          if (act.module === "NOTE") actColor = "#db8324";
-          else if (act.module === "OPPORTUNITY") actColor = "#a74a25";
-          else if (act.module === "CONTACT") actColor = "#71a758";
+          let actColor = "#eab308"; // default yellow
+          if (act.module === "NOTE") {
+            actColor = "#f43f5e"; // Rose
+          } else if (act.module === "CONTACT") {
+            actColor = "#10b981"; // Emerald
+          } else if (act.module === "OPPORTUNITY") {
+            const rawAct = act || {};
+            const actDetails = typeof rawAct.details === "string" ? JSON.parse(rawAct.details || "{}") : (rawAct.details || {});
+            const stageName = actDetails.pipelineStageName?.toLowerCase() || "";
+            if (stageName.includes("interested")) {
+              actColor = "#a855f7"; // Purple
+            } else if (stageName.includes("contacted")) {
+              actColor = "#06b6d4"; // Cyan
+            } else if (stageName.includes("booked") || stageName.includes("appt")) {
+              actColor = "#3b82f6"; // Blue
+            }
+          }
 
           ctx.fillStyle = actColor;
           ctx.beginPath();
@@ -325,8 +338,16 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
 
           const durationSec = parseDurationToSeconds(call.duration);
           const isAnswered = durationSec > 0 && call.status?.toLowerCase() !== "no-answer";
+          const isOutbound = call.direction?.toLowerCase() === "outbound";
 
-          ctx.fillStyle = isAnswered ? "#71a758" : "#ef4444";
+          let callColor = "#fb923c";
+          if (isOutbound) {
+            callColor = isAnswered ? "#3b82f6" : "#f59e0b"; // Outbound Answered (Blue) vs Outbound Missed (Amber)
+          } else {
+            callColor = isAnswered ? "#10b981" : "#ef4444"; // Inbound Answered (Emerald Green) vs Inbound Missed (Red)
+          }
+
+          ctx.fillStyle = callColor;
           ctx.beginPath();
 
           // Render calls as triangles
@@ -358,7 +379,8 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
               hoveredItem.data === msg &&
               hoveredItem.agent.name === agent.name;
 
-            ctx.fillStyle = "#38bdf8";
+            const isOutbound = msg.direction?.toLowerCase() === "outbound";
+            ctx.fillStyle = isOutbound ? "#06b6d4" : "#6366f1"; // Outbound Message (Cyan) vs Inbound (Indigo)
             ctx.beginPath();
 
             // Render messages as square markers
@@ -509,7 +531,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
     if (type === "action") {
       const actTimeStr = formatIsoToTime(data.timestamp);
       return (
-        <div style={tooltipStyle}>
+        <div className="timeline-canvas-tooltip" style={tooltipStyle}>
           <div style={{ fontWeight: 800, color: "var(--primary)", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.25rem", marginBottom: "0.4rem" }}>
             GHL Update ({data.module})
           </div>
@@ -528,7 +550,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
         data.status?.toLowerCase() !== "no-answer";
 
       return (
-        <div style={tooltipStyle}>
+        <div className="timeline-canvas-tooltip" style={tooltipStyle}>
           <div style={{ fontWeight: 800, color: isAnswered ? "#71a758" : "#ef4444", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.25rem", marginBottom: "0.4rem" }}>
             Phone Call ({data.direction})
           </div>
@@ -545,7 +567,7 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
     if (type === "message") {
       const msgTimeStr = formatIsoToTime(data.timestamp);
       return (
-        <div style={tooltipStyle}>
+        <div className="timeline-canvas-tooltip" style={tooltipStyle}>
           <div style={{ fontWeight: 800, color: "#38bdf8", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.25rem", marginBottom: "0.4rem" }}>
             GHL Message ({data.direction})
           </div>
@@ -731,13 +753,31 @@ export default function TeamTimeline({ agents, selectedAgent, onSelectAgent, rep
             </div>
           </div>
 
-          {/* Legend — Outbound Calls & Operations */}
-          <div className="timeline-legend">
-            <span className="legend-item">
-              <span className="legend-color" style={{ backgroundColor: "#db8324", opacity: 0.85, border: "1px solid rgba(0,0,0,0.2)" }}></span>Outbound Calls
+          {/* Legend Row */}
+          <div className="timeline-legend" style={{ display: "flex", gap: "0.8rem", flexWrap: "wrap", fontSize: "0.74rem" }}>
+            <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}>
+              <span className="legend-color" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#3b82f6" }}></span>Outbound Call
             </span>
-            <span className="legend-item">
-              <span className="legend-color" style={{ backgroundColor: "#a74a25", opacity: 0.85, border: "1px solid rgba(0,0,0,0.2)" }}></span>Operations
+            <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}>
+              <span className="legend-color" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981" }}></span>Inbound Call
+            </span>
+            <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}>
+              <span className="legend-color" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ef4444" }}></span>Missed Call
+            </span>
+            <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}>
+              <span className="legend-color" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#f43f5e" }}></span>CRM Note
+            </span>
+            <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}>
+              <span className="legend-color" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981" }}></span>CRM Contact
+            </span>
+            <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}>
+              <span className="legend-color" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#a855f7" }}></span>Interested
+            </span>
+            <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}>
+              <span className="legend-color" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#06b6d4" }}></span>Contacted
+            </span>
+            <span className="legend-item" style={{ display: "flex", alignItems: "center", gap: "0.25rem", color: "var(--text-secondary)" }}>
+              <span className="legend-color" style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#eab308" }}></span>Other Opp
             </span>
           </div>
         </div>

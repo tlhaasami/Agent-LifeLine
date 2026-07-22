@@ -929,6 +929,7 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
 
       {/* Metrics Matrix Grid */}
       <div
+        className="metrics-matrix-container"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
@@ -945,7 +946,7 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
                 setCurrentPage(1);
                 setShowModal(true);
               }}
-              className="metric-card-wrapper card"
+              className={`metric-card-wrapper card ${isSelected ? "active-card" : ""}`}
               data-tooltip={c.tooltip}
               style={{
                 padding: "1.5rem 1.2rem",
@@ -958,13 +959,13 @@ export default function ActivityAndMetrics({ agents, rawAnalysisData, reportDate
                 transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
-              <h4 style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 700 }}>
+              <h4 className="metric-card-title" style={{ margin: 0, fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 700 }}>
                 {c.title}
               </h4>
-              <div style={{ fontSize: "2.3rem", fontWeight: 800, color: "var(--text-primary)", margin: "0.6rem 0" }}>
+              <div className="metric-card-value" style={{ fontSize: "2.3rem", fontWeight: 800, color: "var(--text-primary)", margin: "0.6rem 0" }}>
                 {c.value}
               </div>
-              <span style={{ fontSize: "0.72rem", color: "var(--primary)", background: "rgba(209,92,46,0.08)", padding: "0.2rem 0.6rem", borderRadius: "20px", fontWeight: 600 }}>
+              <span className="metric-card-sub" style={{ fontSize: "0.72rem", color: "var(--primary)", background: "rgba(209,92,46,0.08)", padding: "0.2rem 0.6rem", borderRadius: "20px", fontWeight: 600 }}>
                 {c.sub}
               </span>
             </div>

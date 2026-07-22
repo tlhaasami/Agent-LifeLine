@@ -310,7 +310,25 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
           const xVal = getX(up.time.getTime(), displayWidth);
           const isHovered = hoveredItem && hoveredItem.type === "update" && hoveredItem.data === up;
 
-          ctx.fillStyle = "#818cf8"; // Light purple-blue circle
+          let actColor = "#eab308"; // default yellow
+          if (up.module === "NOTE") {
+            actColor = "#f43f5e"; // Rose
+          } else if (up.module === "CONTACT") {
+            actColor = "#10b981"; // Emerald
+          } else if (up.module === "OPPORTUNITY") {
+            const rawAct = up.data || {};
+            const details = typeof rawAct.details === "string" ? JSON.parse(rawAct.details || "{}") : (rawAct.details || {});
+            const stageName = details.pipelineStageName?.toLowerCase() || "";
+            if (stageName.includes("interested")) {
+              actColor = "#a855f7"; // Purple
+            } else if (stageName.includes("contacted")) {
+              actColor = "#06b6d4"; // Cyan
+            } else if (stageName.includes("booked") || stageName.includes("appt")) {
+              actColor = "#3b82f6"; // Blue
+            }
+          }
+
+          ctx.fillStyle = actColor;
           ctx.beginPath();
           ctx.arc(xVal, yCenter, isHovered ? 7.5 : 5, 0, 2 * Math.PI);
           ctx.fill();
@@ -333,7 +351,9 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
           const xVal = getX(new Date(msg.time).getTime(), displayWidth);
           const isHovered = hoveredItem && hoveredItem.type === "message" && hoveredItem.data === msg;
 
-          ctx.fillStyle = "#38bdf8"; // Sky blue circle
+          const isOutbound = msg.direction?.toLowerCase() === "outbound";
+          ctx.fillStyle = isOutbound ? "#06b6d4" : "#6366f1"; // Cyan (Outbound) vs Indigo (Inbound)
+
           ctx.beginPath();
           ctx.arc(xVal, yCenter, isHovered ? 7.5 : 5, 0, 2 * Math.PI);
           ctx.fill();
@@ -360,7 +380,17 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
           const xVal = getX(cl.time.getTime(), displayWidth);
           const isHovered = hoveredItem && hoveredItem.type === "call" && hoveredItem.data === cl;
 
-          ctx.fillStyle = "#fb923c"; // Light orange triangle
+          const isAnswered = cl.status && cl.status.toLowerCase() === "answered";
+          const isOutbound = cl.direction?.toLowerCase() === "outbound";
+
+          let callColor = "#fb923c";
+          if (isOutbound) {
+            callColor = isAnswered ? "#3b82f6" : "#f59e0b"; // Outbound Answered (Blue) vs Outbound Missed (Amber)
+          } else {
+            callColor = isAnswered ? "#10b981" : "#ef4444"; // Inbound Answered (Emerald Green) vs Inbound Missed (Red)
+          }
+
+          ctx.fillStyle = callColor;
           ctx.beginPath();
           const size = isHovered ? 7.5 : 5.5;
           ctx.moveTo(xVal, yCenter - size);
@@ -1089,16 +1119,58 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
           if (filterGhlUpdates) {
             bstUpdatesList.filter(up => up.agent === agent.name && up.time >= getMinTime() && up.time <= getMaxTime())
               .filter(up => { if (up.module === "NOTE") return filterNotesOnly; if (up.module === "OPPORTUNITY") return filterOppsOnly; if (up.module === "CONTACT") return filterContactsOnly; return false; })
-              .forEach(up => { const xVal = getX(up.time.getTime(), pdfWidth); ctx.fillStyle = "#818cf8"; ctx.beginPath(); ctx.arc(xVal, yCenter, 5, 0, 2 * Math.PI); ctx.fill(); });
+              .forEach(up => {
+                const xVal = getX(up.time.getTime(), pdfWidth);
+                let actColor = "#eab308";
+                if (up.module === "NOTE") actColor = "#f43f5e";
+                else if (up.module === "CONTACT") actColor = "#10b981";
+                else if (up.module === "OPPORTUNITY") {
+                  const rawAct = up.data || {};
+                  const details = typeof rawAct.details === "string" ? JSON.parse(rawAct.details || "{}") : (rawAct.details || {});
+                  const stageName = details.pipelineStageName?.toLowerCase() || "";
+                  if (stageName.includes("interested")) actColor = "#a855f7";
+                  else if (stageName.includes("contacted")) actColor = "#06b6d4";
+                  else if (stageName.includes("booked") || stageName.includes("appt")) actColor = "#3b82f6";
+                }
+                ctx.fillStyle = actColor;
+                ctx.beginPath();
+                ctx.arc(xVal, yCenter, 5, 0, 2 * Math.PI);
+                ctx.fill();
+              });
           }
           if (filterGhlMessages && ghlMessages) {
             ghlMessages.filter(m => m.agent === agent.name && new Date(m.time) >= getMinTime() && new Date(m.time) <= getMaxTime())
-              .forEach(msg => { const xVal = getX(new Date(msg.time).getTime(), pdfWidth); ctx.fillStyle = "#38bdf8"; ctx.beginPath(); ctx.arc(xVal, yCenter, 5, 0, 2 * Math.PI); ctx.fill(); });
+              .forEach(msg => {
+                const xVal = getX(new Date(msg.time).getTime(), pdfWidth);
+                const isOutbound = msg.direction?.toLowerCase() === "outbound";
+                ctx.fillStyle = isOutbound ? "#06b6d4" : "#6366f1";
+                ctx.beginPath();
+                ctx.arc(xVal, yCenter, 5, 0, 2 * Math.PI);
+                ctx.fill();
+              });
           }
           if (filterCalls) {
             let calls = bstCallsList.filter(cl => cl.agent === agent.name && cl.time >= getMinTime() && cl.time <= getMaxTime());
             if (filterMissedOnly) calls = calls.filter(cl => cl.status && cl.status.toLowerCase() !== "answered");
-            calls.forEach(cl => { const xVal = getX(cl.time.getTime(), pdfWidth); ctx.fillStyle = "#fb923c"; ctx.beginPath(); const s = 5.5; ctx.moveTo(xVal, yCenter - s); ctx.lineTo(xVal - s, yCenter + s - 1); ctx.lineTo(xVal + s, yCenter + s - 1); ctx.closePath(); ctx.fill(); });
+            calls.forEach(cl => {
+              const xVal = getX(cl.time.getTime(), pdfWidth);
+              const isAnswered = cl.status && cl.status.toLowerCase() === "answered";
+              const isOutbound = cl.direction?.toLowerCase() === "outbound";
+              let callColor = "#fb923c";
+              if (isOutbound) {
+                callColor = isAnswered ? "#3b82f6" : "#f59e0b";
+              } else {
+                callColor = isAnswered ? "#10b981" : "#ef4444";
+              }
+              ctx.fillStyle = callColor;
+              ctx.beginPath();
+              const s = 5.5;
+              ctx.moveTo(xVal, yCenter - s);
+              ctx.lineTo(xVal - s, yCenter + s - 1);
+              ctx.lineTo(xVal + s, yCenter + s - 1);
+              ctx.closePath();
+              ctx.fill();
+            });
           }
         });
         canvasImageSrc = offCanvas.toDataURL("image/png");
@@ -1318,7 +1390,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
   return (
     <div id="executive-report-content" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       {/* 1. Header (hidden during printing if we are printing specific tables) */}
-      <div className="card no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.5rem" }}>
+      <div className="card no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.2rem 1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <h2 style={{ margin: 0 }}>
             <i className="fa-solid fa-file-invoice"></i> Executive Operations Report - {new Date(reportDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}
@@ -1681,6 +1753,34 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
             )}
           </div>
 
+          {/* Color Coding Legend Row */}
+          <div className="no-print" style={{ display: "flex", gap: "1rem", flexWrap: "wrap", fontSize: "0.75rem", padding: "0.6rem 1.5rem", borderBottom: "1px solid rgba(255,255,255,0.03)", background: "rgba(255,255,255,0.005)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--text-secondary)", fontWeight: 550 }}>
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#3b82f6" }} /> Outbound Call
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--text-secondary)", fontWeight: 550 }}>
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981" }} /> Inbound Call
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--text-secondary)", fontWeight: 550 }}>
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#ef4444" }} /> Missed Call
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--text-secondary)", fontWeight: 550 }}>
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#f43f5e" }} /> CRM Note
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--text-secondary)", fontWeight: 550 }}>
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981" }} /> CRM Contact
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--text-secondary)", fontWeight: 550 }}>
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#a855f7" }} /> Interested
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--text-secondary)", fontWeight: 550 }}>
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#06b6d4" }} /> Contacted
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "var(--text-secondary)", fontWeight: 550 }}>
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#eab308" }} /> Other Opp
+            </span>
+          </div>
+
           <div className="no-print text-secondary" style={{ padding: "0.5rem 1.5rem", fontSize: "0.78rem", borderBottom: "1px solid rgba(255,255,255,0.03)", fontStyle: "italic" }}>
             <i className="fa-solid fa-circle-info" style={{ color: "var(--primary)", marginRight: "0.3rem" }}></i> 
             Click on any GHL circle or Call triangle in the timeline to inspect detailed action parameters.
@@ -1915,15 +2015,15 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
               <thead>
                 <tr>
                   <th>Agent</th>
-                  {table1VisibleCols.includes("newLeads") && <th style={{ backgroundColor: "rgba(56, 189, 248, 0.08)", color: "#38bdf8" }}>New Leads</th>}
+                  {table1VisibleCols.includes("newLeads") && <th style={{ backgroundColor: "rgba(56, 189, 248, 0.08)", color: "#38bdf8" }}>NEW</th>}
                   {table1VisibleCols.includes("referrals") && <th style={{ backgroundColor: "rgba(129, 140, 248, 0.08)", color: "#818cf8" }}>Ref</th>}
                   {table1VisibleCols.includes("apptBooked") && <th style={{ backgroundColor: "rgba(201, 179, 54, 0.08)", color: "var(--warning)" }}>Appt</th>}
                   {table1VisibleCols.includes("closedLeads") && <th style={{ backgroundColor: "rgba(239, 68, 68, 0.08)", color: "var(--danger)" }}>Closed</th>}
                   {table1VisibleCols.includes("bookedLeads") && <th style={{ backgroundColor: "rgba(113, 167, 88, 0.08)", color: "var(--success)" }}>Booked</th>}
-                  {table1VisibleCols.includes("margin") && <th style={{ backgroundColor: "rgba(113, 167, 88, 0.08)", color: "var(--success)" }}>Margin</th>}
-                  {table1VisibleCols.includes("interested") && <th>Interest</th>}
-                  {table1VisibleCols.includes("contacted") && <th>Contact</th>}
-                  {table1VisibleCols.includes("notes") && <th>Notes</th>}
+                  {table1VisibleCols.includes("margin") && <th style={{ backgroundColor: "rgba(113, 167, 88, 0.08)", color: "var(--success)" }}>MARG</th>}
+                  {table1VisibleCols.includes("interested") && <th>INT</th>}
+                  {table1VisibleCols.includes("contacted") && <th>CONT</th>}
+                  {table1VisibleCols.includes("notes") && <th>NOTE</th>}
                   {table1VisibleCols.includes("generalConv") && <th>Conv %</th>}
                 </tr>
               </thead>
@@ -2067,10 +2167,10 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
               <thead>
                 <tr>
                   <th>Agent</th>
-                  {table2VisibleCols.includes("newLeadsToday") && <th style={{ backgroundColor: "rgba(56, 189, 248, 0.08)", color: "#38bdf8" }}>Today's New Leads</th>}
-                  {table2VisibleCols.includes("referralsToday") && <th style={{ backgroundColor: "rgba(129, 140, 248, 0.08)", color: "#818cf8" }}>Today's Referrals</th>}
-                  {table2VisibleCols.includes("convertedToday") && <th style={{ backgroundColor: "rgba(113, 167, 88, 0.08)", color: "var(--success)" }}>Today's Converted (Booked/Appt Booked)</th>}
-                  {table2VisibleCols.includes("todayConvRate") && <th style={{ backgroundColor: "rgba(201, 179, 54, 0.08)", color: "var(--warning)" }}>Today's Conversion Rate (%)</th>}
+                  {table2VisibleCols.includes("newLeadsToday") && <th style={{ backgroundColor: "rgba(56, 189, 248, 0.08)", color: "#38bdf8" }}>TDY NEW</th>}
+                  {table2VisibleCols.includes("referralsToday") && <th style={{ backgroundColor: "rgba(129, 140, 248, 0.08)", color: "#818cf8" }}>TDY REF</th>}
+                  {table2VisibleCols.includes("convertedToday") && <th style={{ backgroundColor: "rgba(113, 167, 88, 0.08)", color: "var(--success)" }}>TDY CONV</th>}
+                  {table2VisibleCols.includes("todayConvRate") && <th style={{ backgroundColor: "rgba(201, 179, 54, 0.08)", color: "var(--warning)" }}>TDY CONV %</th>}
                 </tr>
               </thead>
               <tbody>
@@ -2308,7 +2408,7 @@ export default function ExecutiveReport({ agents, bstCallsList = [], bstUpdatesL
               </p>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem", marginTop: "1rem" }}>
+            <div className="export-grid">
               {/* PDF Column */}
               <div style={{ border: "1px solid var(--card-border)", borderRadius: "12px", padding: "1.5rem", background: "rgba(255,255,255,0.01)", display: "flex", flexDirection: "column", gap: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>

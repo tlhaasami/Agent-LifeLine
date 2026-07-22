@@ -57,7 +57,7 @@ export default function ProgressWorkspace({ agents }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       {/* Search Header */}
-      <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.5rem" }}>
+      <div className="card search-header-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.5rem" }}>
         <h2>
           <i className="fa-solid fa-chart-line"></i> Agent Progress & Segmentations
         </h2>
@@ -79,22 +79,22 @@ export default function ProgressWorkspace({ agents }) {
             <thead>
               <tr>
                 <th onClick={() => handleSort("name")} className="sortable">
-                  Agent Name {sortCol === "name" ? (sortAsc ? "▲" : "▼") : ""}
+                  AGENT {sortCol === "name" ? (sortAsc ? "▲" : "▼") : ""}
                 </th>
                 <th onClick={() => handleSort("newLeads")} className="sortable">
-                  New Leads {sortCol === "newLeads" ? (sortAsc ? "▲" : "▼") : ""}
+                  NEW {sortCol === "newLeads" ? (sortAsc ? "▲" : "▼") : ""}
                 </th>
                 <th onClick={() => handleSort("bookedLeads")} className="sortable">
-                  Booked Leads {sortCol === "bookedLeads" ? (sortAsc ? "▲" : "▼") : ""}
+                  BOOKED {sortCol === "bookedLeads" ? (sortAsc ? "▲" : "▼") : ""}
                 </th>
                 <th onClick={() => handleSort("apptBooked")} className="sortable">
-                  Appt Booked {sortCol === "apptBooked" ? (sortAsc ? "▲" : "▼") : ""}
+                  APPT {sortCol === "apptBooked" ? (sortAsc ? "▲" : "▼") : ""}
                 </th>
                 <th onClick={() => handleSort("closedLeads")} className="sortable">
-                  Closed Leads {sortCol === "closedLeads" ? (sortAsc ? "▲" : "▼") : ""}
+                  CLOSED {sortCol === "closedLeads" ? (sortAsc ? "▲" : "▼") : ""}
                 </th>
                 <th onClick={() => handleSort("total")} className="sortable">
-                  Leads Share & Pipeline Progress
+                  PROGRESS
                 </th>
               </tr>
             </thead>

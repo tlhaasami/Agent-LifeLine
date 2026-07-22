@@ -189,22 +189,22 @@ export default function AgentTable({
           <thead>
             <tr>
               <th onClick={() => handleSort("name")} className={`sortable ${sortColumn === "name" ? (sortAsc ? "sorted-asc" : "sorted-desc") : ""}`}>
-                Agent Name {getSortIcon("name")}
+                AGENT {getSortIcon("name")}
               </th>
               <th onClick={() => handleSort("actions")} className={`sortable ${sortColumn === "actions" ? (sortAsc ? "sorted-asc" : "sorted-desc") : ""}`}>
-                Actions {getSortIcon("actions")}
+                ACTS {getSortIcon("actions")}
               </th>
               <th onClick={() => handleSort("opps")} className={`sortable ${sortColumn === "opps" ? (sortAsc ? "sorted-asc" : "sorted-desc") : ""}`}>
-                Opps {getSortIcon("opps")}
+                OPPS {getSortIcon("opps")}
               </th>
               <th onClick={() => handleSort("span")} className={`sortable ${sortColumn === "span" ? (sortAsc ? "sorted-asc" : "sorted-desc") : ""}`}>
-                Span {getSortIcon("span")}
+                SPAN {getSortIcon("span")}
               </th>
               <th onClick={() => handleSort("active")} className={`sortable ${sortColumn === "active" ? (sortAsc ? "sorted-asc" : "sorted-desc") : ""}`}>
-                Net Active {getSortIcon("active")}
+                NET ACT {getSortIcon("active")}
               </th>
               <th onClick={() => handleSort("breaks")} className={`sortable ${sortColumn === "breaks" ? (sortAsc ? "sorted-asc" : "sorted-desc") : ""}`}>
-                Breaks {getSortIcon("breaks")}
+                BRKS {getSortIcon("breaks")}
               </th>
             </tr>
           </thead>
