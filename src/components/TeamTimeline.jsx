@@ -28,7 +28,15 @@ export default function TeamTimeline({
   filterInboundAnswered,
   filterCrmNotes,
   filterCrmTasks,
-  filterCrmOther
+  filterCrmOther,
+  filterGhlCalls,
+  filterRcCalls,
+  filterGhlOutbound,
+  filterGhlInbound,
+  filterGhlMissed,
+  filterRcOutbound,
+  filterRcInbound,
+  filterRcMissed
 }) {
   const getWhatsAppMessageType = (msg) => {
     if (!msg.body) return "text";
@@ -384,14 +392,28 @@ export default function TeamTimeline({
 
       // ── Phone Call markers ──────────────────────────────────────────────────────
       const agentCalls = (details.calls || []).filter(call => {
+        const isGhl = call.source === "ghl" || !call.source;
+        const isRc = call.source === "ringcentral";
         const isAnswered = call.status && (call.status.toLowerCase() === "answered" || call.status.toLowerCase() === "completed");
         const isOutbound = call.direction?.toLowerCase() === "outbound";
-        if (isAnswered) {
-          if (!filterAnsweredCalls) return false;
-          return isOutbound ? filterOutboundAnswered : filterInboundAnswered;
-        } else {
-          return !isOutbound && filterMissedCalls;
+
+        if (isGhl) {
+          if (!filterGhlCalls) return false;
+          if (isOutbound) {
+            return isAnswered && filterGhlOutbound;
+          } else {
+            return isAnswered ? filterGhlInbound : filterGhlMissed;
+          }
         }
+        if (isRc) {
+          if (!filterRcCalls) return false;
+          if (isOutbound) {
+            return isAnswered && filterRcOutbound;
+          } else {
+            return isAnswered ? filterRcInbound : filterRcMissed;
+          }
+        }
+        return false;
       });
 
       agentCalls.forEach((call) => {
@@ -500,7 +522,15 @@ export default function TeamTimeline({
     filterInboundAnswered,
     filterCrmNotes,
     filterCrmTasks,
-    filterCrmOther
+    filterCrmOther,
+    filterGhlCalls,
+    filterRcCalls,
+    filterGhlOutbound,
+    filterGhlInbound,
+    filterGhlMissed,
+    filterRcOutbound,
+    filterRcInbound,
+    filterRcMissed
   ]);
 
   // ── Hover/Mouse tracking ──────────────────────────────────────────────────
@@ -550,14 +580,28 @@ export default function TeamTimeline({
 
       // 2. Check Calls
       const agentCalls = (details.calls || []).filter(call => {
+        const isGhl = call.source === "ghl" || !call.source;
+        const isRc = call.source === "ringcentral";
         const isAnswered = call.status && (call.status.toLowerCase() === "answered" || call.status.toLowerCase() === "completed");
         const isOutbound = call.direction?.toLowerCase() === "outbound";
-        if (isAnswered) {
-          if (!filterAnsweredCalls) return false;
-          return isOutbound ? filterOutboundAnswered : filterInboundAnswered;
-        } else {
-          return !isOutbound && filterMissedCalls;
+
+        if (isGhl) {
+          if (!filterGhlCalls) return false;
+          if (isOutbound) {
+            return isAnswered && filterGhlOutbound;
+          } else {
+            return isAnswered ? filterGhlInbound : filterGhlMissed;
+          }
         }
+        if (isRc) {
+          if (!filterRcCalls) return false;
+          if (isOutbound) {
+            return isAnswered && filterRcOutbound;
+          } else {
+            return isAnswered ? filterRcInbound : filterRcMissed;
+          }
+        }
+        return false;
       });
 
       agentCalls.forEach((call) => {

@@ -76,6 +76,22 @@ export default function ActivityAndMetrics({
   setFilterCrmTasks,
   filterCrmOther,
   setFilterCrmOther,
+  filterGhlCalls,
+  setFilterGhlCalls,
+  filterRcCalls,
+  setFilterRcCalls,
+  filterGhlOutbound,
+  setFilterGhlOutbound,
+  filterGhlInbound,
+  setFilterGhlInbound,
+  filterGhlMissed,
+  setFilterGhlMissed,
+  filterRcOutbound,
+  setFilterRcOutbound,
+  filterRcInbound,
+  setFilterRcInbound,
+  filterRcMissed,
+  setFilterRcMissed,
   timezone = "PKT"
 }) {
   // Enforce specific agent selection by defaulting to the first agent name
@@ -112,14 +128,28 @@ export default function ActivityAndMetrics({
 
     // 2. Calls
     const calls = (details.calls || []).filter(cl => {
+      const isGhl = cl.source === "ghl" || !cl.source;
+      const isRc = cl.source === "ringcentral";
       const isAnswered = cl.status && (cl.status.toLowerCase() === "answered" || cl.status.toLowerCase() === "completed");
       const isOutbound = cl.direction?.toLowerCase() === "outbound";
-      if (isAnswered) {
-        if (!filterAnsweredCalls) return false;
-        return isOutbound ? filterOutboundAnswered : filterInboundAnswered;
-      } else {
-        return !isOutbound && filterMissedCalls;
+
+      if (isGhl) {
+        if (!filterGhlCalls) return false;
+        if (isOutbound) {
+          return isAnswered && filterGhlOutbound;
+        } else {
+          return isAnswered ? filterGhlInbound : filterGhlMissed;
+        }
       }
+      if (isRc) {
+        if (!filterRcCalls) return false;
+        if (isOutbound) {
+          return isAnswered && filterRcOutbound;
+        } else {
+          return isAnswered ? filterRcInbound : filterRcMissed;
+        }
+      }
+      return false;
     });
     count += calls.length;
 
@@ -355,10 +385,28 @@ export default function ActivityAndMetrics({
 
   const callsList = selectedAgent.calls || [];
   const unfilteredCallsList = callsList.filter(cl => {
+    const isGhl = cl.source === "ghl" || !cl.source;
+    const isRc = cl.source === "ringcentral";
     const isAnswered = cl.status && (cl.status.toLowerCase() === "answered" || cl.status.toLowerCase() === "completed");
     const isOutbound = cl.direction?.toLowerCase() === "outbound";
-    if (isAnswered) return true;
-    return !isOutbound;
+
+    if (isGhl) {
+      if (!filterGhlCalls) return false;
+      if (isOutbound) {
+        return isAnswered && filterGhlOutbound;
+      } else {
+        return isAnswered ? filterGhlInbound : filterGhlMissed;
+      }
+    }
+    if (isRc) {
+      if (!filterRcCalls) return false;
+      if (isOutbound) {
+        return isAnswered && filterRcOutbound;
+      } else {
+        return isAnswered ? filterRcInbound : filterRcMissed;
+      }
+    }
+    return false;
   });
   const callsPlaced = unfilteredCallsList.length;
 
@@ -1501,28 +1549,28 @@ export default function ActivityAndMetrics({
               WhatsApp Messages
             </label>
 
-            {/* Answered Calls Checkbox */}
+            {/* GHL Calls Checkbox */}
             <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-primary)", cursor: "pointer" }}>
               <input
                 type="checkbox"
-                checked={filterAnsweredCalls}
-                onChange={() => setFilterAnsweredCalls(!filterAnsweredCalls)}
-                style={{ accentColor: "#3b82f6", cursor: "pointer" }}
+                checked={filterGhlCalls}
+                onChange={() => setFilterGhlCalls(!filterGhlCalls)}
+                style={{ accentColor: "#8b5cf6", cursor: "pointer" }}
               />
-              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#3b82f6" }} />
-              Answered Calls
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#8b5cf6" }} />
+              GHL Calls
             </label>
 
-            {/* Missed Calls Checkbox */}
+            {/* RingCentral Calls Checkbox */}
             <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", fontWeight: 700, color: "var(--text-primary)", cursor: "pointer" }}>
               <input
                 type="checkbox"
-                checked={filterMissedCalls}
-                onChange={() => setFilterMissedCalls(!filterMissedCalls)}
-                style={{ accentColor: "#f43f5e", cursor: "pointer" }}
+                checked={filterRcCalls}
+                onChange={() => setFilterRcCalls(!filterRcCalls)}
+                style={{ accentColor: "#f97316", cursor: "pointer" }}
               />
-              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#f43f5e" }} />
-              Missed Calls (Inbound)
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#f97316" }} />
+              RingCentral Calls
             </label>
 
             {/* CRM Actions Checkbox */}
@@ -1563,17 +1611,40 @@ export default function ActivityAndMetrics({
               </div>
             )}
 
-            {/* Answered Calls sub-filters */}
-            {filterAnsweredCalls && (
+            {/* GHL Calls sub-filters */}
+            {filterGhlCalls && (
               <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)" }}>Answered Call Directions:</span>
+                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)" }}>GHL Call Directions:</span>
                 <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-primary)", cursor: "pointer" }}>
-                  <input type="checkbox" checked={filterOutboundAnswered} onChange={() => setFilterOutboundAnswered(!filterOutboundAnswered)} style={{ accentColor: "#3b82f6" }} />
+                  <input type="checkbox" checked={filterGhlOutbound} onChange={() => setFilterGhlOutbound(!filterGhlOutbound)} style={{ accentColor: "#8b5cf6" }} />
                   Outbound Answered
                 </label>
                 <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-primary)", cursor: "pointer" }}>
-                  <input type="checkbox" checked={filterInboundAnswered} onChange={() => setFilterInboundAnswered(!filterInboundAnswered)} style={{ accentColor: "#8b5cf6" }} />
+                  <input type="checkbox" checked={filterGhlInbound} onChange={() => setFilterGhlInbound(!filterGhlInbound)} style={{ accentColor: "#8b5cf6" }} />
                   Inbound Answered
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-primary)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={filterGhlMissed} onChange={() => setFilterGhlMissed(!filterGhlMissed)} style={{ accentColor: "#8b5cf6" }} />
+                  Missed Calls (Inbound)
+                </label>
+              </div>
+            )}
+
+            {/* RingCentral Calls sub-filters */}
+            {filterRcCalls && (
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)" }}>RingCentral Call Directions:</span>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-primary)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={filterRcOutbound} onChange={() => setFilterRcOutbound(!filterRcOutbound)} style={{ accentColor: "#f97316" }} />
+                  Outbound Answered
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-primary)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={filterRcInbound} onChange={() => setFilterRcInbound(!filterRcInbound)} style={{ accentColor: "#f97316" }} />
+                  Inbound Answered
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "var(--text-primary)", cursor: "pointer" }}>
+                  <input type="checkbox" checked={filterRcMissed} onChange={() => setFilterRcMissed(!filterRcMissed)} style={{ accentColor: "#f97316" }} />
+                  Missed Calls (Inbound)
                 </label>
               </div>
             )}
@@ -1622,6 +1693,14 @@ export default function ActivityAndMetrics({
           filterCrmNotes={filterCrmNotes}
           filterCrmTasks={filterCrmTasks}
           filterCrmOther={filterCrmOther}
+          filterGhlCalls={filterGhlCalls}
+          filterRcCalls={filterRcCalls}
+          filterGhlOutbound={filterGhlOutbound}
+          filterGhlInbound={filterGhlInbound}
+          filterGhlMissed={filterGhlMissed}
+          filterRcOutbound={filterRcOutbound}
+          filterRcInbound={filterRcInbound}
+          filterRcMissed={filterRcMissed}
         />
       </div>
     </div>

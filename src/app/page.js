@@ -120,6 +120,8 @@ export default function Home() {
   const [filterAnsweredCalls, setFilterAnsweredCalls] = useState(true);
   const [filterMissedCalls, setFilterMissedCalls] = useState(true);
   const [filterCrmActions, setFilterCrmActions] = useState(true);
+  const [filterGhlCalls, setFilterGhlCalls] = useState(true);
+  const [filterRcCalls, setFilterRcCalls] = useState(true);
 
   // Global Timeline/Activity sub-filter checkbox states
   const [filterWaText, setFilterWaText] = useState(true);
@@ -133,6 +135,14 @@ export default function Home() {
   const [filterCrmNotes, setFilterCrmNotes] = useState(true);
   const [filterCrmTasks, setFilterCrmTasks] = useState(true);
   const [filterCrmOther, setFilterCrmOther] = useState(true);
+
+  const [filterGhlOutbound, setFilterGhlOutbound] = useState(true);
+  const [filterGhlInbound, setFilterGhlInbound] = useState(true);
+  const [filterGhlMissed, setFilterGhlMissed] = useState(true);
+
+  const [filterRcOutbound, setFilterRcOutbound] = useState(true);
+  const [filterRcInbound, setFilterRcInbound] = useState(true);
+  const [filterRcMissed, setFilterRcMissed] = useState(true);
 
   // Mock outbound messages helper
   const getMockOutboundMessages = (dateStr) => {
@@ -542,17 +552,19 @@ export default function Home() {
           const callsByAgent = {};
           const auditByAgent = {};
 
-          if (Array.isArray(data.calls)) {
-            data.calls.forEach(c => {
+          const callsListToUse = data.bstCallsList || data.calls;
+          if (Array.isArray(callsListToUse)) {
+            callsListToUse.forEach(c => {
               const agName = normalizeAgentName(c.agent);
               if (agName) {
                 if (!callsByAgent[agName]) callsByAgent[agName] = [];
                 callsByAgent[agName].push({
-                  timestamp: c.timestamp,
+                  timestamp: c.timestamp || c.time,
                   contact_name: c.contact_name || "Unknown",
                   duration: c.duration || "-",
                   status: c.status || "-",
-                  direction: c.direction || "unknown"
+                  direction: c.direction || "unknown",
+                  source: c.source || ((c.duration && String(c.duration).split(":").length === 3) ? "ringcentral" : "ghl")
                 });
               }
             });
@@ -1183,6 +1195,22 @@ export default function Home() {
             setFilterCrmTasks={setFilterCrmTasks}
             filterCrmOther={filterCrmOther}
             setFilterCrmOther={setFilterCrmOther}
+            filterGhlCalls={filterGhlCalls}
+            setFilterGhlCalls={setFilterGhlCalls}
+            filterRcCalls={filterRcCalls}
+            setFilterRcCalls={setFilterRcCalls}
+            filterGhlOutbound={filterGhlOutbound}
+            setFilterGhlOutbound={setFilterGhlOutbound}
+            filterGhlInbound={filterGhlInbound}
+            setFilterGhlInbound={setFilterGhlInbound}
+            filterGhlMissed={filterGhlMissed}
+            setFilterGhlMissed={setFilterGhlMissed}
+            filterRcOutbound={filterRcOutbound}
+            setFilterRcOutbound={setFilterRcOutbound}
+            filterRcInbound={filterRcInbound}
+            setFilterRcInbound={setFilterRcInbound}
+            filterRcMissed={filterRcMissed}
+            setFilterRcMissed={setFilterRcMissed}
             timezone={timezone}
           />
         );

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import CustomDatePicker from "@/components/CustomDatePicker";
 import { parseCSV } from "@/utils/csvParser";
-import { processAgentData, toBST, isJuly17BST, mergeRawStats } from "@/utils/analysisEngine";
+import { processAgentData, toBST, isJuly17BST, mergeRawStats, getPhoneLookupKey, parseDurationToSeconds } from "@/utils/analysisEngine";
 import Login from "@/components/Login";
 
 export default function UploadDataPage() {
@@ -47,7 +47,7 @@ export default function UploadDataPage() {
   const [auditFiles, setAuditFiles] = useState([]);
   const [oppsFile, setOppsFile] = useState(null);
   const [marginFile, setMarginFile] = useState(null);
-  const [callsFile, setCallsFile] = useState(null);
+  const [callsFiles, setCallsFiles] = useState([]);
   const [newLeadsFile, setNewLeadsFile] = useState(null);
   const [bookedLeadsFile, setBookedLeadsFile] = useState(null);
   const [apptLeadsFile, setApptLeadsFile] = useState(null);
@@ -321,7 +321,7 @@ export default function UploadDataPage() {
     const identifiedAudits = [];
     let identifiedOpps = oppsFile;
     let identifiedMargin = marginFile;
-    let identifiedCalls = callsFile;
+    const identifiedCalls = [];
     let identifiedNew = newLeadsFile;
     let identifiedBooked = bookedLeadsFile;
     let identifiedAppt = apptLeadsFile;
@@ -339,9 +339,10 @@ export default function UploadDataPage() {
         name.includes("call report") ||
         name.includes("call_report") ||
         name.includes("call logs") ||
-        name.includes("call log")
+        name.includes("call log") ||
+        name.includes("calllog")
       ) {
-        identifiedCalls = file;
+        identifiedCalls.push(file);
       } else if (name.includes("new leads") || name.includes("new_leads")) {
         identifiedNew = file;
       } else if (
@@ -370,7 +371,7 @@ export default function UploadDataPage() {
     if (identifiedAudits.length > 0) setAuditFiles(identifiedAudits);
     if (identifiedOpps) setOppsFile(identifiedOpps);
     if (identifiedMargin) setMarginFile(identifiedMargin);
-    if (identifiedCalls) setCallsFile(identifiedCalls);
+    if (identifiedCalls.length > 0) setCallsFiles(identifiedCalls);
     if (identifiedNew) setNewLeadsFile(identifiedNew);
     if (identifiedBooked) setBookedLeadsFile(identifiedBooked);
     if (identifiedAppt) setApptLeadsFile(identifiedAppt);
@@ -571,12 +572,12 @@ export default function UploadDataPage() {
   const runOnboardingStep = async (stepIdx, currentTempData) => {
     try {
       if (stepIdx === 0) {
-        // Step 1: Parse Opportunities Database & Margin File
+        // Step 1: Parse Opportunities Database & Contacts Export (both required)
         if (!oppsFile) {
           throw new Error("Opportunities Database file is required. Please upload opportunities.csv.");
         }
-        if (!marginFile) {
-          throw new Error("Margin File is required. Please upload Margin per Agent CSV.");
+        if (!contactsFile) {
+          throw new Error("Contacts Export file is required. Please upload Contacts Export CSV.");
         }
 
         const oppsText = await readFileText(oppsFile);
@@ -586,13 +587,19 @@ export default function UploadDataPage() {
           return assigned && assigned.trim() !== "";
         });
 
-        const marginText = await readFileText(marginFile);
-        const marginRows = parseCSV(marginText);
+        const contactsText = await readFileText(contactsFile);
+        const contactsRows = parseCSV(contactsText);
 
-        const nextData = { ...currentTempData, oppsRows, originalOppsRows: oppsRows, marginRows };
+        let marginRows = [];
+        if (marginFile) {
+          const marginText = await readFileText(marginFile);
+          marginRows = parseCSV(marginText);
+        }
+
+        const nextData = { ...currentTempData, oppsRows, originalOppsRows: oppsRows, marginRows, contactsRows };
         setTempParsedData(nextData);
 
-        let detailsMsg = `Opportunities database parsed.\nTotal opportunities loaded: ${rawOpps.length}\nKept assigned opportunities: ${oppsRows.length} (dropped ${rawOpps.length - oppsRows.length} unassigned ones)\n\nMargin database loaded.\nTotal Margin rows parsed: ${marginRows.length}`;
+        let detailsMsg = `Opportunities database parsed.\nTotal opportunities loaded: ${rawOpps.length}\nKept assigned opportunities: ${oppsRows.length} (dropped ${rawOpps.length - oppsRows.length} unassigned ones)\n\nContacts database parsed.\nTotal contacts loaded: ${contactsRows.length}\n\nMargin database processed.\nTotal Margin rows parsed: ${marginRows.length}`;
         setStepDetails(detailsMsg);
         setStepStatus("waiting-for-user");
 
@@ -611,10 +618,12 @@ export default function UploadDataPage() {
       else if (stepIdx === 1) {
         // Step 2: Read GHL Agent Logs
         const auditRows = [];
-        for (const file of auditFiles) {
-          const text = await readFileText(file);
-          const rows = parseCSV(text);
-          auditRows.push(...rows);
+        if (auditFiles && auditFiles.length > 0) {
+          for (const file of auditFiles) {
+            const text = await readFileText(file);
+            const rows = parseCSV(text);
+            auditRows.push(...rows);
+          }
         }
 
         const auditOppIds = new Set();
@@ -667,24 +676,71 @@ export default function UploadDataPage() {
       else if (stepIdx === 2) {
         // Step 3: Load Call Report Logs
         let callsRows = [];
-        if (callsFile) {
-          const text = await readFileText(callsFile);
-          callsRows = parseCSV(text);
+        if (callsFiles && callsFiles.length > 0) {
+          for (const file of callsFiles) {
+            const text = await readFileText(file);
+            const rows = parseCSV(text);
+            callsRows.push(...rows);
+          }
         }
+        
         let outboundCount = 0;
         let missedInboundCount = 0;
+
+        const deduceDirection = (row) => {
+          if (row.Direction || row.direction) {
+            return (row.Direction || row.direction).toLowerCase();
+          }
+          const actionResult = (row["Action Result"] || row["Action result"] || row["Call status"] || row["Call Status"] || row["call_status"] || "").toLowerCase();
+          const desc = (row["Result Description"] || row["result_description"] || "").toLowerCase();
+
+          if (desc.includes("caller") || actionResult === "missed") {
+            return "inbound";
+          }
+          if (desc.includes("you dialed") || desc.includes("making the call") || desc.includes("accepted by this number") || desc.includes("international calling")) {
+            return "outbound";
+          }
+          return "outbound";
+        };
+
+        const seenCalls = new Set();
+        const uniqueCallsRows = [];
+
         callsRows.forEach(row => {
-          const direction = (row.Direction || row.direction || '').toLowerCase();
-          const status = (row['Call status'] || row['Call Status'] || row.status || '').toLowerCase();
+          const cName = row["Name"] || row["name"] || row["Contact name"] || row["Contact Name"] || row["contact_name"];
+          const cPhone = row["Phone Number"] || row["Phone number"] || row["Contact phone"] || row["Contact Phone"] || row["contact_phone"] || row["phone"];
+          
+          let timestamp = row["Date & time"] || row["Date & Time"] || row["date_time"];
+          if (!timestamp && row["Date"] && row["Time"]) {
+            timestamp = `${String(row["Date"]).trim()} ${String(row["Time"]).trim()}`;
+          }
+
+          const duration = row.Duration || row.duration;
+          const bstTime = toBST(timestamp, reportDate, timezone, "BST");
+          if (!bstTime) return;
+
+          // De-duplicate call rows
+          const phoneKey = getPhoneLookupKey(cPhone || "");
+          const timeMs = bstTime.getTime();
+          const durSecs = parseDurationToSeconds(duration);
+          const callId = `${phoneKey}_${timeMs}_${durSecs}`;
+          if (seenCalls.has(callId)) return;
+          seenCalls.add(callId);
+          uniqueCallsRows.push(row);
+
+          const direction = deduceDirection(row);
+          const rawStatus = (row["Action Result"] || row["Action result"] || row['Call status'] || row['Call Status'] || row.status || '').toLowerCase();
+          const isAnswered = rawStatus === "answered" || rawStatus === "call connected" || rawStatus === "accepted";
+          
           if (direction === 'outbound') {
             outboundCount++;
-          } else if (direction === 'inbound' && status !== 'answered') {
+          } else if (direction === 'inbound' && !isAnswered) {
             missedInboundCount++;
           }
         });
-        const nextData = { ...currentTempData, callsRows };
+        const nextData = { ...currentTempData, callsRows: uniqueCallsRows };
         setTempParsedData(nextData);
-        setStepDetails(`Call report log parsed successfully.\nTotal call logs: ${callsRows.length}\nOutbound calls: ${outboundCount}\nMissed inbound calls (Inbound not Answered): ${missedInboundCount}`);
+        setStepDetails(`Call report logs parsed and merged successfully.\nTotal call logs: ${callsRows.length}\nUnique call logs: ${uniqueCallsRows.length}\nOutbound calls: ${outboundCount}\nMissed inbound calls (Inbound not Answered): ${missedInboundCount}`);
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -793,11 +849,7 @@ export default function UploadDataPage() {
       }
       else if (stepIdx === 6) {
         // Step 7: Load Contacts database & GHL message integration
-        let contactsRows = [];
-        if (contactsFile) {
-          const text = await readFileText(contactsFile);
-          contactsRows = parseCSV(text);
-        }
+        let contactsRows = currentTempData.contactsRows || [];
 
         if (syncConversations && contactsRows.length === 0) {
           throw new Error("Please upload the Contacts Export CSV file to pull live GHL chat messages.");
@@ -874,7 +926,7 @@ export default function UploadDataPage() {
   };
 
   const processUploadedFiles = async () => {
-    if (auditFiles.length === 0) return;
+    if (!oppsFile || !contactsFile) return;
 
     const steps = [
       { id: "read-opps", name: "Parsing CRM Opportunities Database", status: "processing" },
@@ -1362,7 +1414,7 @@ export default function UploadDataPage() {
                   {/* 2b. Margin File */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
-                      2b. Margin File (Required):
+                      2b. Margin File:
                     </label>
                     <div className="custom-file-input-wrapper">
                       <input
@@ -1380,17 +1432,18 @@ export default function UploadDataPage() {
                   {/* 3. Call Logs */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
-                      3. Call Report Log:
+                      3. Call Report Logs:
                     </label>
                     <div className="custom-file-input-wrapper">
                       <input
                         type="file"
+                        multiple
                         accept=".csv"
-                        onChange={(e) => setCallsFile(e.target.files[0] || null)}
+                        onChange={(e) => setCallsFiles(Array.from(e.target.files))}
                       />
                       <div className="custom-file-label" style={{ borderLeft: "3px solid var(--warning)" }}>
                         <i className="fa-solid fa-phone"></i>{" "}
-                        {callsFile ? callsFile.name : "Choose Call Report..."}
+                        {callsFiles.length > 0 ? `${callsFiles.length} files chosen` : "Choose Call Reports..."}
                       </div>
                     </div>
                   </div>
@@ -1470,7 +1523,7 @@ export default function UploadDataPage() {
                   {/* 8. Contacts Export */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
-                      8. Contacts Export:
+                      8. Contacts Export (Required):
                     </label>
                     <div className="custom-file-input-wrapper">
                       <input
@@ -1490,7 +1543,7 @@ export default function UploadDataPage() {
           )}
 
           {/* Identified Summary Status */}
-          {(auditFiles.length > 0 || oppsFile || callsFile || newLeadsFile || bookedLeadsFile || apptLeadsFile || closedLeadsFile || contactsFile) && (
+          {(auditFiles.length > 0 || oppsFile || callsFiles.length > 0 || newLeadsFile || bookedLeadsFile || apptLeadsFile || closedLeadsFile || contactsFile) && (
             <div
               style={{
                 background: "var(--bg-color)",
@@ -1518,15 +1571,15 @@ export default function UploadDataPage() {
                   </strong>
                 </li>
                 <li>
-                  Margin File (Required):{" "}
-                  <strong style={{ color: marginFile ? "var(--success)" : "var(--error)" }}>
+                  Margin File:{" "}
+                  <strong style={{ color: marginFile ? "var(--success)" : "var(--text-secondary)" }}>
                     {marginFile ? `✓ ${marginFile.name}` : "Missing"}
                   </strong>
                 </li>
                 <li>
-                  Call Report Log:{" "}
-                  <strong style={{ color: callsFile ? "var(--success)" : "var(--text-secondary)" }}>
-                    {callsFile ? `✓ ${callsFile.name}` : "Missing"}
+                  Call Report Logs:{" "}
+                  <strong style={{ color: callsFiles.length > 0 ? "var(--success)" : "var(--text-secondary)" }}>
+                    {callsFiles.length > 0 ? `✓ ${callsFiles.length} files` : "Missing"}
                   </strong>
                 </li>
                 <li>
@@ -1554,8 +1607,8 @@ export default function UploadDataPage() {
                   </strong>
                 </li>
                 <li>
-                  Contacts Export:{" "}
-                  <strong style={{ color: contactsFile ? "var(--success)" : "var(--text-secondary)" }}>
+                  Contacts Export (Required):{" "}
+                  <strong style={{ color: contactsFile ? "var(--success)" : "var(--error)" }}>
                     {contactsFile ? `✓ ${contactsFile.name}` : "Missing"}
                   </strong>
                 </li>
@@ -1577,10 +1630,10 @@ export default function UploadDataPage() {
             <button
               className="btn-primary-small"
               onClick={processUploadedFiles}
-              disabled={auditFiles.length === 0}
+              disabled={!oppsFile || !contactsFile}
               style={{
-                opacity: auditFiles.length === 0 ? 0.5 : 1,
-                cursor: auditFiles.length === 0 ? "not-allowed" : "pointer",
+                opacity: (!oppsFile || !contactsFile) ? 0.5 : 1,
+                cursor: (!oppsFile || !contactsFile) ? "not-allowed" : "pointer",
                 padding: "0.65rem 2rem",
                 fontSize: "0.9rem",
               }}

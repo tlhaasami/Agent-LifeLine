@@ -142,13 +142,22 @@ export function toBST(dateStr, targetDateStr = "2026-07-17", timezone = "BST", i
 export function isJuly17BST(date, targetDateStr = "2026-07-17") {
   if (!date) return false;
   const [yr, mo, dy] = targetDateStr.split("-").map(Number);
-  return date.getFullYear() === yr && date.getMonth() === mo - 1 && date.getDate() === dy;
+  // Adjust UTC date to BST timezone (UTC+1) and check UTC calendar date components
+  const bstDate = new Date(date.getTime() + 3600000);
+  return bstDate.getUTCFullYear() === yr && bstDate.getUTCMonth() === mo - 1 && bstDate.getUTCDate() === dy;
 }
 
 // Parse phone number to digits only (digits only, e.g. +447865964771 -> 447865964771)
 export function normalizePhone(phoneStr) {
   if (!phoneStr) return "";
   return phoneStr.replace(/\D/g, "");
+}
+
+// Get standardized key for matching phone numbers (takes last 10 digits)
+export function getPhoneLookupKey(phoneStr) {
+  const normalized = normalizePhone(phoneStr);
+  if (!normalized) return "";
+  return normalized.slice(-10);
 }
 
 // Parse duration to seconds (e.g. MM:SS or HH:MM:SS)
@@ -183,27 +192,6 @@ export function processAgentData(
   const contactToAgent = {};
   const phoneToAgent = {};
 
-  // 1. Process opportunities.csv
-  opportunitiesRows.forEach((row) => {
-    const assigned = normalizeAgentName(row.assigned || row.Assigned);
-    if (!assigned) return;
-
-    oppCounts[assigned] = (oppCounts[assigned] || 0) + 1;
-
-    const contactName = row["Contact Name"] || row["contact_name"] || row["Contact name"];
-    if (contactName) {
-      contactToAgent[contactName.trim().toLowerCase()] = assigned;
-    }
-
-    const phone = row.phone || row.Phone || row["Contact phone"];
-    if (phone) {
-      const normPhone = normalizePhone(phone);
-      if (normPhone) {
-        phoneToAgent[normPhone] = assigned;
-      }
-    }
-  });
-
   // Helper to populate maps from other source arrays
   const populateAgentMaps = (rows, agentCol, phoneCol, nameCol) => {
     rows.forEach(row => {
@@ -220,21 +208,15 @@ export function processAgentData(
 
       const phone = row[phoneCol];
       if (phone) {
-        const normPhone = normalizePhone(phone);
-        if (normPhone && !phoneToAgent[normPhone]) {
-          phoneToAgent[normPhone] = assigned;
+        const phoneKey = getPhoneLookupKey(phone);
+        if (phoneKey && !phoneToAgent[phoneKey]) {
+          phoneToAgent[phoneKey] = assigned;
         }
       }
     });
   };
 
-  // Populate from lead segmentations
-  populateAgentMaps(newLeadsRows, "Assigned user", "Phone number", "Opportunity name");
-  populateAgentMaps(bookedLeadsRows, "Assigned user", "Phone number", "Opportunity name");
-  populateAgentMaps(apptBookedLeadsRows, "Assigned user", "Phone number", "Opportunity name");
-  populateAgentMaps(closedLeadsRows, "Assigned user", "Phone number", "Opportunity name");
-
-  // Populate from smart list contacts
+  // 1. Populate from smart list contacts first (contactsRows has priority!)
   contactsRows.forEach(row => {
     const assigned = normalizeAgentName(row["Assigned To"] || row["assignedTo"]);
     if (!assigned) return;
@@ -242,25 +224,55 @@ export function processAgentData(
     const firstName = row["First Name"] || "";
     const lastName = row["Last Name"] || "";
     const fullName = `${firstName} ${lastName}`.trim().toLowerCase();
-    if (fullName && !contactToAgent[fullName]) {
+    if (fullName) {
       contactToAgent[fullName] = assigned;
     }
 
     const phone = row["Phone"] || row["phone"];
     if (phone) {
-      const normPhone = normalizePhone(phone);
-      if (normPhone && !phoneToAgent[normPhone]) {
-        phoneToAgent[normPhone] = assigned;
+      const phoneKey = getPhoneLookupKey(phone);
+      if (phoneKey) {
+        phoneToAgent[phoneKey] = assigned;
       }
     }
   });
 
+  // 2. Process opportunities.csv (only if NOT set by contacts)
+  opportunitiesRows.forEach((row) => {
+    const assigned = normalizeAgentName(row.assigned || row.Assigned);
+    if (!assigned) return;
+
+    oppCounts[assigned] = (oppCounts[assigned] || 0) + 1;
+
+    const contactName = row["Contact Name"] || row["contact_name"] || row["Contact name"];
+    if (contactName) {
+      const normName = contactName.trim().toLowerCase();
+      if (!contactToAgent[normName]) {
+        contactToAgent[normName] = assigned;
+      }
+    }
+
+    const phone = row.phone || row.Phone || row["Contact phone"];
+    if (phone) {
+      const phoneKey = getPhoneLookupKey(phone);
+      if (phoneKey && !phoneToAgent[phoneKey]) {
+        phoneToAgent[phoneKey] = assigned;
+      }
+    }
+  });
+
+  // 3. Populate from lead segmentations (only if NOT set by contacts or opportunities)
+  populateAgentMaps(newLeadsRows, "Assigned user", "Phone number", "Opportunity name");
+  populateAgentMaps(bookedLeadsRows, "Assigned user", "Phone number", "Opportunity name");
+  populateAgentMaps(apptBookedLeadsRows, "Assigned user", "Phone number", "Opportunity name");
+  populateAgentMaps(closedLeadsRows, "Assigned user", "Phone number", "Opportunity name");
+
   // Helper to map record to agent by phone / contact name
   const findAgent = (phone, name) => {
     if (phone) {
-      const normPhone = normalizePhone(phone);
-      if (normPhone && phoneToAgent[normPhone]) {
-        return phoneToAgent[normPhone];
+      const phoneKey = getPhoneLookupKey(phone);
+      if (phoneKey && phoneToAgent[phoneKey]) {
+        return phoneToAgent[phoneKey];
       }
     }
     if (name) {
@@ -361,30 +373,71 @@ export function processAgentData(
     agentSegmentations[agent].closedLeadsToday++;
   });
 
+  // Helper to deduce direction if missing in CSV
+  const deduceDirection = (row) => {
+    if (row.Direction || row.direction) {
+      return (row.Direction || row.direction).toLowerCase();
+    }
+    const actionResult = (row["Action Result"] || row["Action result"] || row["Call status"] || row["Call Status"] || row["call_status"] || "").toLowerCase();
+    const desc = (row["Result Description"] || row["result_description"] || "").toLowerCase();
+
+    if (desc.includes("caller") || actionResult === "missed") {
+      return "inbound";
+    }
+    if (desc.includes("you dialed") || desc.includes("making the call") || desc.includes("accepted by this number") || desc.includes("international calling")) {
+      return "outbound";
+    }
+    return "outbound";
+  };
+
   // 3. Process Call logs to BST standard
   const agentCalls = {};
   const bstCallsList = []; // list for visual timeline scatter plot
+  const seenCalls = new Set();
 
   callLogsRows.forEach((row) => {
-    const cName = row["Contact name"] || row["Contact Name"] || row["contact_name"];
-    const cPhone = row["Contact phone"] || row["Contact Phone"] || row["contact_phone"];
-    const timestamp = row["Date & time"] || row["Date & Time"] || row["date_time"];
+    const cName = row["Name"] || row["name"] || row["Contact name"] || row["Contact Name"] || row["contact_name"];
+    const cPhone = row["Phone Number"] || row["Phone number"] || row["Contact phone"] || row["Contact Phone"] || row["contact_phone"] || row["phone"];
+    
+    let timestamp = row["Date & time"] || row["Date & Time"] || row["date_time"];
+    if (!timestamp && row["Date"] && row["Time"]) {
+      timestamp = `${String(row["Date"]).trim()} ${String(row["Time"]).trim()}`;
+    }
+
     const duration = row.Duration || row.duration;
-    const status = row["Call status"] || row["Call Status"] || row["call_status"];
-    const direction = row.Direction || row.direction || "unknown";
+    const rawStatus = row["Action Result"] || row["Action result"] || row["Call status"] || row["Call Status"] || row["call_status"] || "";
+    
+    let status = rawStatus || "-";
+    if (String(status).toLowerCase() === "call connected" || String(status).toLowerCase() === "accepted") {
+      status = "Answered";
+    }
+
+    const direction = deduceDirection(row);
 
     const bstTime = toBST(timestamp, targetDateStr, timezone, "BST");
     if (!bstTime) return;
 
+    // De-duplicate based on normalized phone lookup key, timestamp, and duration
+    const phoneKey = getPhoneLookupKey(cPhone || "");
+    const timeMs = bstTime.getTime();
+    const durSecs = parseDurationToSeconds(duration);
+    const callId = `${phoneKey}_${timeMs}_${durSecs}`;
+    if (seenCalls.has(callId)) return;
+    seenCalls.add(callId);
+
     const rawCallAgent = row.User || row["User name"] || row["Agent"] || row["Agent name"] || row["Assigned user"] || row.user || row.userName || findAgent(cPhone, cName);
     const agent = normalizeAgentName(rawCallAgent);
     if (agent) {
+      const isRc = row["Date"] !== undefined || row["Time"] !== undefined || row["Action Result"] !== undefined || row["Action result"] !== undefined || row["Result Description"] !== undefined || row["Result description"] !== undefined || row["Action"] !== undefined || row["action"] !== undefined;
+      const source = isRc ? "ringcentral" : "ghl";
+
       const call = {
         timestamp: bstTime.toISOString(),
         contact_name: cName || "Unknown",
         duration: duration || "-",
         status: status || "-",
         direction: direction || "unknown",
+        source,
       };
 
       if (!agentCalls[agent]) {
@@ -400,6 +453,7 @@ export function processAgentData(
           status,
           duration,
           contact_name: cName || "Unknown",
+          source,
         });
       }
     }
