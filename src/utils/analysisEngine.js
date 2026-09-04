@@ -711,6 +711,8 @@ export function processAgentData(
     ...Object.keys(oppCounts),
     ...Object.keys(agentSegmentations),
     ...Object.keys(agentCalls),
+    ...Object.keys(agentMargins),
+    ...Object.values(contactToAgent).filter(Boolean),
   ]);
 
   allAgents.forEach((agent) => {

@@ -569,26 +569,40 @@ export default function UploadDataPage() {
     }
   };
 
+  const hasAnyFile = (auditFiles && auditFiles.length > 0) || !!oppsFile || !!marginFile || (callsFiles && callsFiles.length > 0) || !!newLeadsFile || !!bookedLeadsFile || !!apptLeadsFile || !!closedLeadsFile || !!contactsFile;
+
+  const clearAllFiles = () => {
+    setAuditFiles([]);
+    setOppsFile(null);
+    setMarginFile(null);
+    setCallsFiles([]);
+    setNewLeadsFile(null);
+    setBookedLeadsFile(null);
+    setApptLeadsFile(null);
+    setClosedLeadsFile(null);
+    setContactsFile(null);
+  };
+
   const runOnboardingStep = async (stepIdx, currentTempData) => {
     try {
       if (stepIdx === 0) {
-        // Step 1: Parse Opportunities Database & Contacts Export (both required)
-        if (!oppsFile) {
-          throw new Error("Opportunities Database file is required. Please upload opportunities.csv.");
-        }
-        if (!contactsFile) {
-          throw new Error("Contacts Export file is required. Please upload Contacts Export CSV.");
+        // Step 1: Parse Opportunities Database, Contacts Export, and Margin File (all optional, empty if not uploaded)
+        let rawOpps = [];
+        let oppsRows = [];
+        if (oppsFile) {
+          const oppsText = await readFileText(oppsFile);
+          rawOpps = parseCSV(oppsText);
+          oppsRows = rawOpps.filter(row => {
+            const assigned = row.assigned || row.Assigned || row["Assigned user"] || row["Assigned User"] || row["Assigned To"] || row["assignedTo"];
+            return assigned && assigned.trim() !== "";
+          });
         }
 
-        const oppsText = await readFileText(oppsFile);
-        const rawOpps = parseCSV(oppsText);
-        const oppsRows = rawOpps.filter(row => {
-          const assigned = row.assigned || row.Assigned || row["Assigned user"] || row["Assigned User"] || row["Assigned To"] || row["assignedTo"];
-          return assigned && assigned.trim() !== "";
-        });
-
-        const contactsText = await readFileText(contactsFile);
-        const contactsRows = parseCSV(contactsText);
+        let contactsRows = [];
+        if (contactsFile) {
+          const contactsText = await readFileText(contactsFile);
+          contactsRows = parseCSV(contactsText);
+        }
 
         let marginRows = [];
         if (marginFile) {
@@ -599,8 +613,19 @@ export default function UploadDataPage() {
         const nextData = { ...currentTempData, oppsRows, originalOppsRows: oppsRows, marginRows, contactsRows };
         setTempParsedData(nextData);
 
-        let detailsMsg = `Opportunities database parsed.\nTotal opportunities loaded: ${rawOpps.length}\nKept assigned opportunities: ${oppsRows.length} (dropped ${rawOpps.length - oppsRows.length} unassigned ones)\n\nContacts database parsed.\nTotal contacts loaded: ${contactsRows.length}\n\nMargin database processed.\nTotal Margin rows parsed: ${marginRows.length}`;
-        setStepDetails(detailsMsg);
+        const oppsDetails = oppsFile
+          ? `Opportunities database parsed.\nTotal opportunities loaded: ${rawOpps.length}\nKept assigned opportunities: ${oppsRows.length} (dropped ${rawOpps.length - oppsRows.length} unassigned ones)`
+          : `Opportunities database: Empty (no file uploaded)`;
+
+        const contactsDetails = contactsFile
+          ? `Contacts database parsed.\nTotal contacts loaded: ${contactsRows.length}`
+          : `Contacts database: Empty (no file uploaded)`;
+
+        const marginDetails = marginFile
+          ? `Margin database processed.\nTotal Margin rows parsed: ${marginRows.length}`
+          : `Margin database: Empty (no file uploaded)`;
+
+        setStepDetails(`${oppsDetails}\n\n${contactsDetails}\n\n${marginDetails}`);
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -658,7 +683,11 @@ export default function UploadDataPage() {
         // Keep all opportunities (no dropping based on audit logs)
         const nextData = { ...currentTempData, auditRows };
         setTempParsedData(nextData);
-        setStepDetails(`Parsed ${auditFiles.length} GHL Agent Log files.\nTotal log rows: ${auditRows.length}\nUnique opportunities with audit activity: ${auditOppIds.size}`);
+        if (auditFiles && auditFiles.length > 0) {
+          setStepDetails(`Parsed ${auditFiles.length} GHL Agent Log files.\nTotal log rows: ${auditRows.length}\nUnique opportunities with audit activity: ${auditOppIds.size}`);
+        } else {
+          setStepDetails(`GHL Agent Logs: Empty (no files uploaded)`);
+        }
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -740,7 +769,11 @@ export default function UploadDataPage() {
         });
         const nextData = { ...currentTempData, callsRows: uniqueCallsRows };
         setTempParsedData(nextData);
-        setStepDetails(`Call report logs parsed and merged successfully.\nTotal call logs: ${callsRows.length}\nUnique call logs: ${uniqueCallsRows.length}\nOutbound calls: ${outboundCount}\nMissed inbound calls (Inbound not Answered): ${missedInboundCount}`);
+        if (callsFiles && callsFiles.length > 0) {
+          setStepDetails(`Call report logs parsed and merged successfully.\nTotal call logs: ${callsRows.length}\nUnique call logs: ${uniqueCallsRows.length}\nOutbound calls: ${outboundCount}\nMissed inbound calls (Inbound not Answered): ${missedInboundCount}`);
+        } else {
+          setStepDetails(`Call Report Logs: Empty (no files uploaded)`);
+        }
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -773,7 +806,11 @@ export default function UploadDataPage() {
         });
         const nextData = { ...currentTempData, newLeadsRows };
         setTempParsedData(nextData);
-        setStepDetails(`New leads segmentation file parsed.\nTotal new leads today: ${newLeadsRows.length}\nReferrals: ${referrals}\nStandard leads (Others): ${others}`);
+        if (newLeadsFile) {
+          setStepDetails(`New leads segmentation file parsed.\nTotal new leads today: ${newLeadsRows.length}\nReferrals: ${referrals}\nStandard leads (Others): ${others}`);
+        } else {
+          setStepDetails(`New leads segmentation: Empty (no file uploaded)`);
+        }
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -807,7 +844,10 @@ export default function UploadDataPage() {
         }
         const nextData = { ...currentTempData, bookedRows, apptRows, closedRows };
         setTempParsedData(nextData);
-        setStepDetails(`Bookings & stage transitions loaded:\n- Booked Leads: ${bookedRows.length}\n- Appointment Booked: ${apptRows.length}\n- Closed Leads: ${closedRows.length}`);
+        const bookedMsg = bookedLeadsFile ? `Booked Leads: ${bookedRows.length}` : `Booked Leads: Empty (no file uploaded)`;
+        const apptMsg = apptLeadsFile ? `Appointment Booked: ${apptRows.length}` : `Appointment Booked: Empty (no file uploaded)`;
+        const closedMsg = closedLeadsFile ? `Closed Leads: ${closedRows.length}` : `Closed Leads: Empty (no file uploaded)`;
+        setStepDetails(`Bookings & stage transitions loaded:\n- ${bookedMsg}\n- ${apptMsg}\n- ${closedMsg}`);
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -825,14 +865,19 @@ export default function UploadDataPage() {
       else if (stepIdx === 5) {
         // Step 6: Calculate Margin Generated Today
         let totalMargin = 0;
-        currentTempData.marginRows.forEach(row => {
+        const rows = currentTempData.marginRows || [];
+        rows.forEach(row => {
           const leadVal = parseFloat(row["Lead value"] || row["Lead Value"] || row["Margin Amount"] || row["Margin amount"] || 0);
           if (!isNaN(leadVal) && leadVal > 0) {
             totalMargin += leadVal;
           }
         });
 
-        setStepDetails(`Margin records processed from Margin File.\nTotal Margin Generated today: £${totalMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        if (marginFile || rows.length > 0) {
+          setStepDetails(`Margin records processed from Margin File (${rows.length} rows).\nTotal Margin Generated today: £${totalMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        } else {
+          setStepDetails(`Margin File: Empty (no file uploaded).\nTotal Margin Generated today: £0.00`);
+        }
         setStepStatus("waiting-for-user");
 
         setProcessingState(prev => {
@@ -852,13 +897,15 @@ export default function UploadDataPage() {
         let contactsRows = currentTempData.contactsRows || [];
 
         if (syncConversations && contactsRows.length === 0) {
-          throw new Error("Please upload the Contacts Export CSV file to pull live GHL chat messages.");
+          console.warn("No Contacts Export CSV uploaded; skipping live GHL conversation sync.");
         }
 
         const nextData = { ...currentTempData, contactsRows };
         setTempParsedData(nextData);
 
-        let summaryText = `Contacts database parsed successfully.\nTotal contacts parsed: ${contactsRows.length}`;
+        let summaryText = contactsRows.length > 0
+          ? `Contacts database parsed successfully.\nTotal contacts parsed: ${contactsRows.length}`
+          : `Contacts database: Empty (no file uploaded).`;
 
         console.log("=== COMPILING DATA IN BROWSER ===");
         console.log("auditRows length:", (currentTempData.auditRows || []).length);
@@ -872,20 +919,20 @@ export default function UploadDataPage() {
 
         // Compile everything
         const processed = processAgentData(
-          currentTempData.auditRows,
-          currentTempData.originalOppsRows, // Use unfiltered opps so processAgentData can count all opportunities properly!
-          currentTempData.callsRows,
-          currentTempData.newLeadsRows,
-          currentTempData.bookedRows,
-          currentTempData.apptRows,
-          currentTempData.closedRows,
+          currentTempData.auditRows || [],
+          currentTempData.originalOppsRows || [], // Use unfiltered opps so processAgentData can count all opportunities properly!
+          currentTempData.callsRows || [],
+          currentTempData.newLeadsRows || [],
+          currentTempData.bookedRows || [],
+          currentTempData.apptRows || [],
+          currentTempData.closedRows || [],
           reportDate,
           30,
           5,
           timezone,
           false,
           contactsRows,
-          currentTempData.marginRows
+          currentTempData.marginRows || []
         );
 
         console.log("Processed Agents Dictionary Keys:", Object.keys(processed.agents || {}));
@@ -894,7 +941,8 @@ export default function UploadDataPage() {
         processed.ghl_outbound_messages = [];
         setCompiledData(processed);
 
-        setStepDetails(`${summaryText}\n\nAll datasets parsed and compiled successfully!`);
+        const totalAgents = Object.keys(processed.agents || {}).length;
+        setStepDetails(`${summaryText}\n\nAll datasets parsed and compiled successfully! Total agents identified: ${totalAgents}. Ready to save.`);
         setStepStatus("confirm-upload");
 
         setProcessingState(prev => {
@@ -926,7 +974,10 @@ export default function UploadDataPage() {
   };
 
   const processUploadedFiles = async () => {
-    if (!oppsFile || !contactsFile) return;
+    if (!hasAnyFile) {
+      await showCustomAlert("No files selected. Please upload at least one file before compiling.");
+      return;
+    }
 
     const steps = [
       { id: "read-opps", name: "Parsing CRM Opportunities Database", status: "processing" },
@@ -1370,26 +1421,80 @@ export default function UploadDataPage() {
           {uploadMode === "single" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", marginBottom: "1.5rem" }}>
               <div style={{ background: "rgba(255, 255, 255, 0.01)", border: "1px solid var(--card-border)", borderRadius: "12px", padding: "1.5rem" }}>
-                <h4 style={{ fontSize: "0.95rem", fontWeight: 800, marginBottom: "1.25rem", color: "var(--text-primary)" }}>
-                  Upload Files Individually
-                </h4>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+                  <h4 style={{ fontSize: "0.95rem", fontWeight: 800, margin: 0, color: "var(--text-primary)" }}>
+                    Upload Files Individually
+                  </h4>
+                  {hasAnyFile && (
+                    <button
+                      type="button"
+                      onClick={clearAllFiles}
+                      style={{
+                        background: "rgba(239, 68, 68, 0.1)",
+                        border: "1px solid rgba(239, 68, 68, 0.3)",
+                        color: "var(--danger)",
+                        borderRadius: "6px",
+                        padding: "0.3rem 0.75rem",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.35rem"
+                      }}
+                    >
+                      <i className="fa-solid fa-trash-can"></i> Clear All Files
+                    </button>
+                  )}
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
                   {/* 1. GHL Logs */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                       1. GHL Audit Logs (multiple):
                     </label>
-                    <div className="custom-file-input-wrapper">
+                    <div className="custom-file-input-wrapper" style={{ position: "relative" }}>
                       <input
                         type="file"
                         multiple
                         accept=".csv"
                         onChange={(e) => setAuditFiles(Array.from(e.target.files))}
                       />
-                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--primary)" }}>
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--primary)", paddingRight: auditFiles.length > 0 ? "2.2rem" : undefined }}>
                         <i className="fa-solid fa-file-csv"></i>{" "}
                         {auditFiles.length > 0 ? `${auditFiles.length} logs chosen` : "Choose Audit Logs..."}
                       </div>
+                      {auditFiles.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setAuditFiles([]);
+                          }}
+                          title="Clear Audit Logs"
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(239, 68, 68, 0.2)",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            color: "var(--danger)",
+                            borderRadius: "50%",
+                            width: "22px",
+                            height: "22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            zIndex: 10
+                          }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1398,16 +1503,47 @@ export default function UploadDataPage() {
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                       2. Opportunities Database:
                     </label>
-                    <div className="custom-file-input-wrapper">
+                    <div className="custom-file-input-wrapper" style={{ position: "relative" }}>
                       <input
                         type="file"
                         accept=".csv"
                         onChange={(e) => setOppsFile(e.target.files[0] || null)}
                       />
-                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--info)" }}>
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--info)", paddingRight: oppsFile ? "2.2rem" : undefined }}>
                         <i className="fa-solid fa-database"></i>{" "}
                         {oppsFile ? oppsFile.name : "Choose Opportunities..."}
                       </div>
+                      {oppsFile && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOppsFile(null);
+                          }}
+                          title="Clear Opportunities"
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(239, 68, 68, 0.2)",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            color: "var(--danger)",
+                            borderRadius: "50%",
+                            width: "22px",
+                            height: "22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            zIndex: 10
+                          }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1416,16 +1552,47 @@ export default function UploadDataPage() {
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                       2b. Margin File:
                     </label>
-                    <div className="custom-file-input-wrapper">
+                    <div className="custom-file-input-wrapper" style={{ position: "relative" }}>
                       <input
                         type="file"
                         accept=".csv"
                         onChange={(e) => setMarginFile(e.target.files[0] || null)}
                       />
-                      <div className="custom-file-label" style={{ borderLeft: "3px solid #10b981" }}>
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid #10b981", paddingRight: marginFile ? "2.2rem" : undefined }}>
                         <i className="fa-solid fa-file-invoice-dollar"></i>{" "}
                         {marginFile ? marginFile.name : "Choose Margin File..."}
                       </div>
+                      {marginFile && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setMarginFile(null);
+                          }}
+                          title="Clear Margin File"
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(239, 68, 68, 0.2)",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            color: "var(--danger)",
+                            borderRadius: "50%",
+                            width: "22px",
+                            height: "22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            zIndex: 10
+                          }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1434,17 +1601,48 @@ export default function UploadDataPage() {
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                       3. Call Report Logs:
                     </label>
-                    <div className="custom-file-input-wrapper">
+                    <div className="custom-file-input-wrapper" style={{ position: "relative" }}>
                       <input
                         type="file"
                         multiple
                         accept=".csv"
                         onChange={(e) => setCallsFiles(Array.from(e.target.files))}
                       />
-                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--warning)" }}>
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--warning)", paddingRight: callsFiles.length > 0 ? "2.2rem" : undefined }}>
                         <i className="fa-solid fa-phone"></i>{" "}
                         {callsFiles.length > 0 ? `${callsFiles.length} files chosen` : "Choose Call Reports..."}
                       </div>
+                      {callsFiles.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setCallsFiles([]);
+                          }}
+                          title="Clear Call Reports"
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(239, 68, 68, 0.2)",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            color: "var(--danger)",
+                            borderRadius: "50%",
+                            width: "22px",
+                            height: "22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            zIndex: 10
+                          }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1453,16 +1651,47 @@ export default function UploadDataPage() {
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                       4. New Leads Segmentation:
                     </label>
-                    <div className="custom-file-input-wrapper">
+                    <div className="custom-file-input-wrapper" style={{ position: "relative" }}>
                       <input
                         type="file"
                         accept=".csv"
                         onChange={(e) => setNewLeadsFile(e.target.files[0] || null)}
                       />
-                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--info)" }}>
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--info)", paddingRight: newLeadsFile ? "2.2rem" : undefined }}>
                         <i className="fa-solid fa-user-plus"></i>{" "}
                         {newLeadsFile ? newLeadsFile.name : "Choose New Leads..."}
                       </div>
+                      {newLeadsFile && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setNewLeadsFile(null);
+                          }}
+                          title="Clear New Leads"
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(239, 68, 68, 0.2)",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            color: "var(--danger)",
+                            borderRadius: "50%",
+                            width: "22px",
+                            height: "22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            zIndex: 10
+                          }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1471,16 +1700,47 @@ export default function UploadDataPage() {
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                       5. Booked Leads:
                     </label>
-                    <div className="custom-file-input-wrapper">
+                    <div className="custom-file-input-wrapper" style={{ position: "relative" }}>
                       <input
                         type="file"
                         accept=".csv"
                         onChange={(e) => setBookedLeadsFile(e.target.files[0] || null)}
                       />
-                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--success)" }}>
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--success)", paddingRight: bookedLeadsFile ? "2.2rem" : undefined }}>
                         <i className="fa-solid fa-calendar-check"></i>{" "}
                         {bookedLeadsFile ? bookedLeadsFile.name : "Choose Booked..."}
                       </div>
+                      {bookedLeadsFile && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setBookedLeadsFile(null);
+                          }}
+                          title="Clear Booked Leads"
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(239, 68, 68, 0.2)",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            color: "var(--danger)",
+                            borderRadius: "50%",
+                            width: "22px",
+                            height: "22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            zIndex: 10
+                          }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1489,16 +1749,47 @@ export default function UploadDataPage() {
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                       6. Appt Booked Leads:
                     </label>
-                    <div className="custom-file-input-wrapper">
+                    <div className="custom-file-input-wrapper" style={{ position: "relative" }}>
                       <input
                         type="file"
                         accept=".csv"
                         onChange={(e) => setApptLeadsFile(e.target.files[0] || null)}
                       />
-                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--warning)" }}>
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--warning)", paddingRight: apptLeadsFile ? "2.2rem" : undefined }}>
                         <i className="fa-solid fa-calendar-days"></i>{" "}
                         {apptLeadsFile ? apptLeadsFile.name : "Choose Appt Booked..."}
                       </div>
+                      {apptLeadsFile && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setApptLeadsFile(null);
+                          }}
+                          title="Clear Appt Booked Leads"
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(239, 68, 68, 0.2)",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            color: "var(--danger)",
+                            borderRadius: "50%",
+                            width: "22px",
+                            height: "22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            zIndex: 10
+                          }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1507,34 +1798,96 @@ export default function UploadDataPage() {
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
                       7. Closed Leads:
                     </label>
-                    <div className="custom-file-input-wrapper">
+                    <div className="custom-file-input-wrapper" style={{ position: "relative" }}>
                       <input
                         type="file"
                         accept=".csv"
                         onChange={(e) => setClosedLeadsFile(e.target.files[0] || null)}
                       />
-                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--danger)" }}>
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--danger)", paddingRight: closedLeadsFile ? "2.2rem" : undefined }}>
                         <i className="fa-solid fa-circle-xmark"></i>{" "}
                         {closedLeadsFile ? closedLeadsFile.name : "Choose Closed..."}
                       </div>
+                      {closedLeadsFile && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setClosedLeadsFile(null);
+                          }}
+                          title="Clear Closed Leads"
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(239, 68, 68, 0.2)",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            color: "var(--danger)",
+                            borderRadius: "50%",
+                            width: "22px",
+                            height: "22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            zIndex: 10
+                          }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
 
                   {/* 8. Contacts Export */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                     <label style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--text-secondary)" }}>
-                      8. Contacts Export (Required):
+                      8. Contacts Export:
                     </label>
-                    <div className="custom-file-input-wrapper">
+                    <div className="custom-file-input-wrapper" style={{ position: "relative" }}>
                       <input
                         type="file"
                         accept=".csv"
                         onChange={(e) => setContactsFile(e.target.files[0] || null)}
                       />
-                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--primary)" }}>
+                      <div className="custom-file-label" style={{ borderLeft: "3px solid var(--primary)", paddingRight: contactsFile ? "2.2rem" : undefined }}>
                         <i className="fa-solid fa-address-book"></i>{" "}
                         {contactsFile ? contactsFile.name : "Choose Contacts Export..."}
                       </div>
+                      {contactsFile && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setContactsFile(null);
+                          }}
+                          title="Clear Contacts Export"
+                          style={{
+                            position: "absolute",
+                            right: "10px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "rgba(239, 68, 68, 0.2)",
+                            border: "1px solid rgba(239, 68, 68, 0.4)",
+                            color: "var(--danger)",
+                            borderRadius: "50%",
+                            width: "22px",
+                            height: "22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: "0.75rem",
+                            zIndex: 10
+                          }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1543,7 +1896,7 @@ export default function UploadDataPage() {
           )}
 
           {/* Identified Summary Status */}
-          {(auditFiles.length > 0 || oppsFile || callsFiles.length > 0 || newLeadsFile || bookedLeadsFile || apptLeadsFile || closedLeadsFile || contactsFile) && (
+          {(auditFiles.length > 0 || oppsFile || marginFile || callsFiles.length > 0 || newLeadsFile || bookedLeadsFile || apptLeadsFile || closedLeadsFile || contactsFile) && (
             <div
               style={{
                 background: "var(--bg-color)",
@@ -1554,62 +1907,78 @@ export default function UploadDataPage() {
                 marginBottom: "1.5rem",
               }}
             >
-              <h4 style={{ fontWeight: 700, marginBottom: "0.6rem" }}>
-                <i className="fa-solid fa-circle-info"></i> Mapped Bulk Files:
-              </h4>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
+                <h4 style={{ fontWeight: 700, margin: 0 }}>
+                  <i className="fa-solid fa-circle-info"></i> Mapped Bulk Files:
+                </h4>
+                <button
+                  type="button"
+                  onClick={clearAllFiles}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-secondary)",
+                    fontSize: "0.78rem",
+                    cursor: "pointer",
+                    textDecoration: "underline"
+                  }}
+                >
+                  Clear All
+                </button>
+              </div>
               <ul style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "0.5rem", listStyle: "none", padding: 0 }}>
                 <li>
                   GHL Agent Logs:{" "}
                   <strong style={{ color: auditFiles.length > 0 ? "var(--success)" : "var(--text-secondary)" }}>
-                    {auditFiles.length > 0 ? `✓ ${auditFiles.length} files` : "Missing"}
+                    {auditFiles.length > 0 ? `✓ ${auditFiles.length} files` : "Empty / None"}
                   </strong>
                 </li>
                 <li>
                   Opportunities Master:{" "}
                   <strong style={{ color: oppsFile ? "var(--success)" : "var(--text-secondary)" }}>
-                    {oppsFile ? `✓ ${oppsFile.name}` : "Missing"}
+                    {oppsFile ? `✓ ${oppsFile.name}` : "Empty / None"}
                   </strong>
                 </li>
                 <li>
                   Margin File:{" "}
                   <strong style={{ color: marginFile ? "var(--success)" : "var(--text-secondary)" }}>
-                    {marginFile ? `✓ ${marginFile.name}` : "Missing"}
+                    {marginFile ? `✓ ${marginFile.name}` : "Empty / None"}
                   </strong>
                 </li>
                 <li>
                   Call Report Logs:{" "}
                   <strong style={{ color: callsFiles.length > 0 ? "var(--success)" : "var(--text-secondary)" }}>
-                    {callsFiles.length > 0 ? `✓ ${callsFiles.length} files` : "Missing"}
+                    {callsFiles.length > 0 ? `✓ ${callsFiles.length} files` : "Empty / None"}
                   </strong>
                 </li>
                 <li>
                   New Leads Segmentation:{" "}
                   <strong style={{ color: newLeadsFile ? "var(--success)" : "var(--text-secondary)" }}>
-                    {newLeadsFile ? `✓ ${newLeadsFile.name}` : "Missing"}
+                    {newLeadsFile ? `✓ ${newLeadsFile.name}` : "Empty / None"}
                   </strong>
                 </li>
                 <li>
                   Booked Leads:{" "}
                   <strong style={{ color: bookedLeadsFile ? "var(--success)" : "var(--text-secondary)" }}>
-                    {bookedLeadsFile ? `✓ ${bookedLeadsFile.name}` : "Missing"}
+                    {bookedLeadsFile ? `✓ ${bookedLeadsFile.name}` : "Empty / None"}
                   </strong>
                 </li>
                 <li>
                   Appt Booked Leads:{" "}
                   <strong style={{ color: apptLeadsFile ? "var(--success)" : "var(--text-secondary)" }}>
-                    {apptLeadsFile ? `✓ ${apptLeadsFile.name}` : "Missing"}
+                    {apptLeadsFile ? `✓ ${apptLeadsFile.name}` : "Empty / None"}
                   </strong>
                 </li>
                 <li>
                   Closed Leads:{" "}
                   <strong style={{ color: closedLeadsFile ? "var(--success)" : "var(--text-secondary)" }}>
-                    {closedLeadsFile ? `✓ ${closedLeadsFile.name}` : "Missing"}
+                    {closedLeadsFile ? `✓ ${closedLeadsFile.name}` : "Empty / None"}
                   </strong>
                 </li>
                 <li>
-                  Contacts Export (Required):{" "}
-                  <strong style={{ color: contactsFile ? "var(--success)" : "var(--error)" }}>
-                    {contactsFile ? `✓ ${contactsFile.name}` : "Missing"}
+                  Contacts Export:{" "}
+                  <strong style={{ color: contactsFile ? "var(--success)" : "var(--text-secondary)" }}>
+                    {contactsFile ? `✓ ${contactsFile.name}` : "Empty / None"}
                   </strong>
                 </li>
               </ul>
@@ -1630,10 +1999,10 @@ export default function UploadDataPage() {
             <button
               className="btn-primary-small"
               onClick={processUploadedFiles}
-              disabled={!oppsFile || !contactsFile}
+              disabled={!hasAnyFile}
               style={{
-                opacity: (!oppsFile || !contactsFile) ? 0.5 : 1,
-                cursor: (!oppsFile || !contactsFile) ? "not-allowed" : "pointer",
+                opacity: !hasAnyFile ? 0.5 : 1,
+                cursor: !hasAnyFile ? "not-allowed" : "pointer",
                 padding: "0.65rem 2rem",
                 fontSize: "0.9rem",
               }}
